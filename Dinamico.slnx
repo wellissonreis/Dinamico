@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Dinamico.LoadEngine/Dinamico.LoadEngine.csproj" />
+    <Project Path="src/Dinamico.LoadEngine.Local/Dinamico.LoadEngine.Local.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Dinamico.LoadEngine.Tests/Dinamico.LoadEngine.Tests.csproj" />
+  </Folder>
+</Solution>
