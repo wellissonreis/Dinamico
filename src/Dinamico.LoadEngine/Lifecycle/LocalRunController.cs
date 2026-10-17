@@ -352,6 +352,9 @@ public sealed class LocalRunController
         }
         private async Task<bool> FlushAsync(Task consume, MetricWindowManifest? manifest)
         {
+            // Return the task before invoking external output, so the caller can install its deadline
+            // even when consume is already complete and FlushAsync does synchronous work before yielding.
+            await Task.Yield();
             await consume.ConfigureAwait(false);
             lock (gate) if (outputFailed) return false;
             try { await output.FlushAsync(manifest, outputStop.Token).ConfigureAwait(false); return true; }
