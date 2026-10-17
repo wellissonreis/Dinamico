@@ -28,6 +28,18 @@ public sealed class LogHistogram
     public void Record(ulong nanoseconds)
     {
         int bucket = LogHistogramSchema.Classify(nanoseconds);
+        RecordClassified(nanoseconds, bucket);
+    }
+
+    internal void ValidateRecord(ulong nanoseconds, int bucket)
+    {
+        _ = checked(Count + 1);
+        _ = checked(SumNanoseconds + nanoseconds);
+        _ = checked(counts[bucket] + 1);
+    }
+
+    internal void RecordClassified(ulong nanoseconds, int bucket)
+    {
         ulong nextCount = checked(Count + 1);
         ulong nextSum = checked(SumNanoseconds + nanoseconds);
         ulong nextBucket = checked(counts[bucket] + 1);
