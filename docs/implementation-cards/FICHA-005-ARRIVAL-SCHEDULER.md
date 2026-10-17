@@ -1,6 +1,6 @@
 # FICHA-005 — Agenda open-loop determinística
 
-Prioridade: P0. Complexidade: M. Marco: M1. Status: proposta de integração futura; não implementada.
+Prioridade: P0. Complexidade: M. Marco: M1. Status: implementada e validada em 2026-10-13; gate integrado M1 pendente.
 
 ## Objetivo
 
@@ -32,9 +32,9 @@ Entrada: R, D, instante inicial monotônico, quantum e tolerância de atraso. Sa
 
 ## Integração futura — Rate Limiting v2
 
-Scheduler permanece pendente. Conforme o [contrato local v2](../03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12), modos Normal/Authorized/Diagnostic, 429 e RetryAfterObservation não alteram RPS, concorrência, índice/due ou fim da agenda. LoadRetryPolicy.None proíbe retry de carga; Diagnostic não cria sondagens. Evidências da extensão pura estão em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md).
+Scheduler implementado em `Scheduling/ArrivalSchedule.cs` e `ArrivalScheduler.cs`. Conforme o [contrato local v2](../03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12), modos Normal/Authorized/Diagnostic, 429 e RetryAfterObservation não alteram RPS, concorrência, índice/due ou fim da agenda. LoadRetryPolicy.None proíbe retry de carga; Diagnostic não cria sondagens. Evidências estão em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md).
 
-Com relógio falso, comparar a sequência exata de índices/due nos três modos com respostas 429 contínuas/intermitentes, 503 com Retry-After e respostas lentas. Delay válido, clamp ou data de Retry-After não introduzem espera, catch-up, requisição adicional ou recalculam planned_total. Na integração 002–006, conciliar admissões, inícios, drops e recebimentos da fixture sem confundir timeout com ausência no servidor. Esses testes open-loop são futuros; nenhum foi executado aqui.
+Com relógio falso, comparar a sequência exata de índices/due nos três modos com respostas 429 contínuas/intermitentes, 503 com Retry-After e respostas lentas. Delay válido, clamp ou data de Retry-After não introduzem espera, catch-up, requisição adicional ou recalculam planned_total. Na integração 002–006, conciliar admissões, inícios, drops e recebimentos da fixture sem confundir timeout com ausência no servidor. A sequência com respostas fictícias e a conciliação HTTP lenta foram verificadas na retomada. Execução operacional completa dos três modos depende de 009/012.
 
 ## Decisões técnicas
 
@@ -66,6 +66,10 @@ Timers não são real-time; microbateladas são esperadas. Um token bucket permi
 
 ## Definição de pronto
 
-- [ ] Testes determinísticos cobrem bordas/pausas.
-- [ ] Tempo/memória por salto não dependem de requests perdidas.
-- [ ] Quantum e tolerância constam no contrato e relatório futuro.
+- [x] Testes determinísticos cobrem bordas/pausas.
+- [x] Tempo/memória por salto não dependem de requests perdidas.
+- [ ] Quantum e tolerância constam no contrato e relatório futuro (contrato entregue; relatório depende de 011).
+
+## Evidência da retomada
+
+`ArrivalSchedulerTests.cs` valida fórmula racional, partições, saltos em O(1), teto por despertar, fim, overflow e invariância dos modos com respostas fictícias. Corrigido CS9124 no relógio falso que impedia compilar o trabalho pendente. `BoundedAdmissionTests.cs` liga agenda simulada, admissão e HTTP real; calibração do relógio real permanece no gate 012.
