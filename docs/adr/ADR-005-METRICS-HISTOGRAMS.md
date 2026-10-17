@@ -1,6 +1,6 @@
 # ADR-005 — Agregação limitada e histograma logarítmico fixo
 
-Status atual: histograma implementado na FICHA-007 (2026-10-17); janelas/lock implementados na 008; integração ao ciclo local pendente. Registro original: Proposto, 2026-10-08.
+Status atual: histograma implementado na FICHA-007 (2026-10-17); janelas/lock implementados na 008; integração ao ciclo local implementada na 009; observabilidade/relatório/gate pendentes. Registro original: Proposto, 2026-10-08.
 
 ## Contexto
 
@@ -41,3 +41,7 @@ A FICHA-007 materializa somente o componente matemático: tabela canônica exata
 ## Continuação — janelas locais, 2026-10-17
 
 A 008 implementa lock, rotação monotônica, snapshots imutáveis, dois histogramas, sink limitado e consolidação local contígua. Codec/schema de janela próprios; evidências na [FICHA-008](../implementation-cards/FICHA-008-METRIC-WINDOWS.md). O registro anterior da 007 permanece histórico. Contenção ainda não medida; controlador 009, observabilidade/relatório e gate 012 pendentes.
+
+## Continuação — ciclo local, 2026-10-17
+
+A 009 integra o acumulador durante geração/drain, retém janelas até confirmação da saída (máximo seis sem ACK) e limita flush a 10 s com grace de cancelamento. Qualidade, completude dos dados e razão de término são distintas. O codec/histograma não mudou; evidências na [FICHA-009](../implementation-cards/FICHA-009-LOCAL-LIFECYCLE.md). Registros anteriores permanecem históricos; não há aceite de M1 ou medição de contenção.

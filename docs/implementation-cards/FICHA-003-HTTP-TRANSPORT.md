@@ -1,6 +1,6 @@
 # FICHA-003 — Transporte HTTP reutilizável e streaming
 
-Prioridade: P0. Complexidade: M. Marco: M1. Status: parcialmente implementada; continuação 008 em 2026-10-17 expõe evento de headers. Ciclo local e gate final pendentes.
+Prioridade: P0. Complexidade: M. Marco: M1. Status: parcialmente implementada; continuação 008 em 2026-10-17 expõe evento de headers. Integrado ao ciclo local 009; vetores restantes e gate final pendentes.
 
 ## Objetivo
 
@@ -81,3 +81,7 @@ Testes reais com FICHA-002 verificam reuso da conexão, payload POST, 429 com Re
 ## Continuação 008 — 2026-10-17
 
 `SendAsync(index, token, observeHeaders)` entrega `ResponseHeadersObservation` validada com timestamp monotônico/status/Retry-After uma vez antes de consumir o corpo. A sobrecarga anterior permanece compatível. Falha do observador escapa como `TransportObserverException`; não é convertida em sucesso HTTP nem ocultada por classificação de erro de rede. Testes com corpo bloqueado e deadline controlado verificam status na janela anterior ao terminal; detalhes e validação em [008](FICHA-008-METRIC-WINDOWS.md). Transporte permanece parcial; não há host integrado ou fechamento do gate 012.
+
+## Continuação 009 — 2026-10-17
+
+Ciclo local agora possui o pool por execução, registra início/headers/terminal e dispõe o transporte após observar todas as operações. Testes HTTP reais com fixture (agenda simulada) cobrem 202/429/503 no ciclo; cancelamento/drain e adaptação não cooperativa têm vetores específicos em [009](FICHA-009-LOCAL-LIFECYCLE.md). Interface interna ILocalRunTransport é fronteira de teste, sem configuração pública para substituir políticas de rede. Permanecem vetores restantes de transporte e gate 012; CLI ainda informativa.

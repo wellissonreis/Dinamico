@@ -1,6 +1,6 @@
 # FICHA-037 — Identificação e diagnóstico de Rate Limiting
 
-Prioridade: P0 para diagnóstico confiável. Complexidade: G no conjunto; entregas por marco. Marcos: M1–M6. Status: **M1 parcial**; contratos/validação v2, fixture 002, transporte 003 parcial, deadline 004, agenda 005, admissão 006, histograma/codec 007 e acumulador/janelas 008 implementados. Ciclo local 009, relatório e marcos seguintes pendentes. Data: 2026-10-17.
+Prioridade: P0 para diagnóstico confiável. Complexidade: G no conjunto; entregas por marco. Marcos: M1–M6. Status: **M1 parcial**; contratos/validação v2, fixture 002, transporte 003 parcial, deadline 004, agenda 005, admissão 006, histograma/codec 007, acumulador/janelas 008 e ciclo local 009 implementados. Observabilidade 010, CLI/relatório 011, gate 012 e marcos seguintes pendentes. Data: 2026-10-17.
 
 ## Objetivo
 
@@ -40,7 +40,7 @@ Bypass por header arbitrário, alteração da infraestrutura do cliente, rotaç�
 
 | Etapa | Fichas relacionadas | Entrega quando os componentes existirem |
 |---|---|---|
-| M1 — motor local | 001–012 | Entregues contratos/validação/parser puro, fixture 002, deadline 004, agenda 005, admissão 006, histograma/codec 007 e acumulador/janelas 008; transporte 003 parcial. Pendentes: ciclo local, observabilidade, relatório CLI e gate 012; somente loopback |
+| M1 — motor local | 001–012 | Entregues contratos/validação/parser puro, fixture 002, deadline 004, agenda 005, admissão 006, histograma/codec 007, acumulador/janelas 008 e ciclo local 009; transporte 003 parcial. Pendentes: observabilidade, relatório CLI e gate 012; somente loopback |
 | M2 — persistência | 013–015 | Versionamento de janelas, ingestão idempotente e consulta dos indicadores |
 | M3 — controle protegido | 018–022 | Referências de credenciais, revisão imutável, autorização e contratos REST |
 | M4/M5 — distribuição | 023–028 | IPs de saída conhecidos, evidência de NAT, consolidação e falhas parciais |
@@ -62,7 +62,7 @@ Em M3, aplicar o cofre lógico já previsto em 07: cifrar valores persistidos, e
 
 No recorte local, manter loopback, validação pura e compatibilidade explícita de schema; não criar cofre. Conforme [07](../07-SECURITY.md), HTTP com credenciais sintéticas em loopback é permitido no laboratório. Usar somente segredos sintéticos nesses testes; o validador não distingue segredos reais de sintéticos. HTTPS permanece obrigatório para o SaaS remoto.
 
-### Contadores e denominadores — 008 implementada; integração ao ciclo/relatório futura (009/011)
+### Contadores e denominadores — 008/009 implementadas; relatório futuro (011)
 
 | Indicador | Definição |
 |---|---|
@@ -137,8 +137,8 @@ Os valores não representam capacidade medida do projeto nem os limites locais a
 ## Passos do recorte e integrações futuras
 
 1. Integrar contratos/validação/parser puro ao schema local 2 conforme a seção final de 03; registrar evidências reais em RATE-LIMITING-DELIVERY pelo coordenador.
-2. Fixture 002 entregue; 003 captura status/Retry-After na observação terminal, 004 preserva duração monotônica, 005 mantém agenda open-loop e 006 limita admissão. Histograma/codec 007 entregue. A 008 expõe o evento de headers separado da conclusão terminal e implementa o acumulador; ligação completa ao ciclo fica na 009.
-3. A 008 agrega eventos, denominadores e cobertura; o dono de cada operação deve garantir registro único. Futuramente, 009 liga o ciclo; 010 verifica sigilo/custo; 011 apresenta relatório sanitizado; 012 fecha o gate integrado de M1.
+2. Fixture 002 entregue; 003 captura status/Retry-After na observação terminal, 004 preserva duração monotônica, 005 mantém agenda open-loop e 006 limita admissão. Histograma/codec 007 entregue. A 008 expõe o evento de headers separado da conclusão terminal e implementa o acumulador; ligação ao ciclo implementada na 009.
+3. A 008 agrega eventos, denominadores e cobertura; o dono de cada operação deve garantir registro único. A 009 liga o ciclo; futuramente, 010 verifica sigilo/custo; 011 apresenta relatório sanitizado; 012 fecha o gate integrado de M1.
 4. M2/M3 adicionam persistência e credenciais protegidas; M4/M5 verificam NAT/egress e consolidação; M6 entrega UI/SSE. Cada etapa depende de evidência própria.
 
 Coordenação desta entrega exclusivamente por tmux, com modelos/esforços conferidos e ownership por arquivo. Registro em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md). Nas próximas etapas, revalidar estágio e modelos disponíveis, fixar semânticas antes de delegar, preservar ownership, revisar integrações e registrar testes reais. Não criar worktrees salvo conflito concreto.
@@ -165,7 +165,9 @@ Registro histórico das continuações 001–003: no recorte anterior, contratos
 
 Registro da continuação 007 em 2026-10-17: deadline 004, agenda 005 e admissão 006 já implementados (455 testes históricos de 13/10); histograma/codec 007 agora validado com 17 direcionados e suíte de 472 testes, build Release sem avisos/erros. Evidências na [FICHA-007](FICHA-007-HISTOGRAM.md) e em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md). Janelas 008 e fichas 009–012 continuam pendentes. Expor recebimento de headers independentemente da conclusão terminal é pré-requisito para status na janela correta. M1 e FICHA-037 permanecem incompletos.
 
-Continuação atual 008 (2026-10-17): callback de headers separado do terminal, contadores/janelas imutáveis, sink limitado e codec/consolidação local implementados. **24 casos novos, 87 direcionados e 496 na suíte completa**, build Release sem avisos/erros. Evidências e limitações na [FICHA-008](FICHA-008-METRIC-WINDOWS.md). A 009 ainda deve integrar geração/drain/flush; M1 e FICHA-037 seguem incompletos.
+Registro da continuação 008 (2026-10-17): callback de headers separado do terminal, contadores/janelas imutáveis, sink limitado e codec/consolidação local implementados. **24 casos novos, 87 direcionados e 496 na suíte completa**, build Release sem avisos/erros. Evidências e limitações na [FICHA-008](FICHA-008-METRIC-WINDOWS.md). A 009 ainda deve integrar geração/drain/flush; M1 e FICHA-037 seguem incompletos.
+
+Continuação atual 009 (2026-10-17): ciclo local integrado, cancelamento/drain, retenção até ACK e flush limitado, razão/qualidade/completude independentes. **19 casos novos, 97 direcionados, 515 na suíte completa**, build Release sem avisos/erros. Dois cenários de corrida repetidos dez vezes: 20/20 aprovados. Evidências na [FICHA-009](FICHA-009-LOCAL-LIFECYCLE.md). 010–012 e M1 integrado permanecem pendentes; a FICHA-037 segue M1 parcial.
 
 ## Critérios de aceite
 

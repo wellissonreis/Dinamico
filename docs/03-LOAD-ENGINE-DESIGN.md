@@ -1,6 +1,6 @@
 # 03 — Projeto do motor de carga
 
-Status atual (2026-10-17): contratos locais v2, fixture 002, deadline 004, agenda 005, admissão 006, histograma 007 e contadores/janelas 008 implementados; transporte 003 parcial. Ciclo local e fichas 009–012 pendentes. Semântica canônica das métricas deste SaaS.
+Status atual (2026-10-17): contratos locais v2, fixture 002, deadline 004, agenda 005, admissão 006, histograma 007, contadores/janelas 008 e ciclo local 009 implementados; transporte 003 parcial. Fichas 010–012 pendentes. Semântica canônica das métricas deste SaaS.
 
 ## Comportamento esperado
 
@@ -59,6 +59,10 @@ Não subtrair a fila do handler para produzir “latência do servidor”; o mot
 
 Fim natural da duração para novos envios; chamadas em voo continuam até seu deadline (no máximo 60 s após o último início). Cancelamento do usuário, SIGTERM ou lease expirado param a agenda e sinalizam cancelamento das chamadas ativas imediatamente. Distinguir razão de parada, timeout de requisição, timeout de conexão e interrupção do processo. Em corrida, classificar pelo primeiro motivo latched no controlador da operação; não usar apenas o tipo `TaskCanceledException` como explicação. Corridas não podem duplicar contagem ou liberar slot duas vezes.
 
+Implementação local 009 (2026-10-17): `LocalRunController.RunAsync(plan, output, token)` integra agenda, admissão, pool HTTP, headers e terminal ao acumulador. Uma execução por controlador; `ILocalMetricOutput.WriteAsync` confirma janelas e `FlushAsync` confirma o prefixo/manifesto. Janela permanece no sink até confirmação, contando entre as seis reservadas; encoding/I/O ficam fora do lock de métricas. Rotação periódica de 5 s continua no drain. O controlador reconcilia due no instante latched de parada, incluindo as vencidas desde o último poll, separando policy/scheduler_late de not_scheduled_after_stop.
+
+Fim natural não cancela I/O. Primeira parada anormal é latched, falhas posteriores ficam em máscara separada; cancelamento durante drain continua válido. `Completion`, `Reason`, qualidade, cobertura, operações drenadas, saída encerrada e flush confirmado são campos distintos. Resultados podem descrever execução falha com dados completos ou prefixo parcial sem extrapolação. Flush tem deadline de 10 s após fechar métricas, com grace de 1 s para cancelamento; drain tem deadline de transporte e fallback RequestTimeout + 1 s, mais grace de 1 s. Adaptador injetado não cooperativo é marcado incompleto, com observação de falha tardia e dispose adiado até terminar a operação. Nenhum pool é declarado encerrado enquanto a operação permanece ativa. Contratos/evidências na [FICHA-009](implementation-cards/FICHA-009-LOCAL-LIFECYCLE.md). SIGTERM em subprocesso, observabilidade, relatório e calibração permanecem 010–012.
+
 ## Contadores e populações
 
 As identidades abaixo valem no total acumulado fechado, não em cada janela, porque uma chamada pode iniciar e terminar em janelas diferentes.
@@ -116,7 +120,7 @@ O total final da execução soma todas as janelas, inclusive drain. RPS iniciado
 
 Implementação local da 008 (2026-10-17): `MetricWindowCollector` serializa registros/rotação, `MetricWindowSink` limita a fila a seis janelas com orçamento calculado de 240 KiB, `MetricWindowTotals` consolida apenas sequência contígua e preserva último gauge. Quality é cumulativa. Callback síncrono `ResponseHeadersObservation` do transporte entrega timestamp/status/Retry-After antes do corpo, independente do terminal; falha do observador é explícita. Dono da operação registra cada evento uma vez; não há deduplicação por request no acumulador.
 
-Schema de janela 1 é independente do plano v2. Codec little-endian de 17.832 bytes, dois histogramas v1, checksum SHA-256 e validação de integridade. Layout e evidências na [FICHA-008](implementation-cards/FICHA-008-METRIC-WINDOWS.md#contrato-concretizado). Encoding/hash e soma de totais fora do lock. Pressão trava novas alterações e sinaliza MetricsPartial; não descartar silenciosamente nem criar fila de observações. Em fronteira já publicada, fechamento é comprovado pelo manifesto sem reescrever a janela. A 009 deve chamar rotação durante geração/drain e conduzir parada/flush; não existe controlador integrado nesta entrega.
+Schema de janela 1 é independente do plano v2. Codec little-endian de 17.832 bytes, dois histogramas v1, checksum SHA-256 e validação de integridade. Layout e evidências na [FICHA-008](implementation-cards/FICHA-008-METRIC-WINDOWS.md#contrato-concretizado). Encoding/hash e soma de totais fora do lock. Pressão trava novas alterações e sinaliza MetricsPartial; não descartar silenciosamente nem criar fila de observações. Em fronteira já publicada, fechamento é comprovado pelo manifesto sem reescrever a janela. A 009 chama rotação durante geração/drain e conduz parada/flush pela API local; a CLI funcional permanece na 011.
 
 ## Orçamento de memória e CPU
 
@@ -146,7 +150,7 @@ A configuração local reutiliza Headers para API key, `Authorization: Bearer ..
 
 O parser recebe status, lista de valores brutos e referência UTC: somente 429 é avaliado; lista vazia = Missing, mais de um valor = Invalid (não concatenar/split por vírgula, pois data contém vírgula). Um campo tem no máximo 128 caracteres antes de trim de SP/HTAB. Delta aceita somente dígitos ASCII não negativos; overflow numérico é saturado ao teto, sem perder a verificação de sintaxe. Data aceita IMF-fixdate, rfc850-date e asctime-date conforme [RFC 9110 §5.6.7](https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.7), com ano >=1900, calendário/dia da semana consistentes e segundo 60 somente em 23:59 UTC (sem consultar tabela externa de segundos intercalares); nenhuma string bruta é retida ou incluída em erros. Header inválido não muda o desfecho HTTP. Um 429 sem observação explícita mantém RetryAfter NotObserved; Missing só resulta de captura efetiva sem campo. Anexar evidência aplicável a status diferente de 429, ou NotApplicable a 429, é erro de contrato. NotObserved não pode ser contabilizado como ausência comprovada do header.
 
-### Integração das métricas — componente 008 implementado; ciclo/relatório futuros
+### Integração das métricas — componentes 008/009 implementados; relatório futuro
 
 `status_received[429]` conta uma vez nos headers, independentemente de EOF. Não incrementar novamente a distribuição ao consumir a observação terminal. Início, headers e terminal pertencem às suas janelas de registro; preservar as identidades anteriores. `http_success` reutiliza a regra versionada, não criar outro contador de aceitas. Outras respostas finais = soma de status recebidos menos 429; não confundir com falhas de transporte. Os slots 100–199 do array planejado permanecem zero.
 
