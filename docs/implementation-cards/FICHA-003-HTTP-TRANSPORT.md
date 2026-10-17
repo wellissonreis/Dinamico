@@ -1,6 +1,6 @@
 # FICHA-003 — Transporte HTTP reutilizável e streaming
 
-Prioridade: P0. Complexidade: M. Marco: M1. Status: proposta de integração futura; não implementada.
+Prioridade: P0. Complexidade: M. Marco: M1. Status: parcialmente implementada; continuação 008 em 2026-10-17 expõe evento de headers. Ciclo local e gate final pendentes.
 
 ## Objetivo
 
@@ -32,15 +32,15 @@ Entrada: configuração validada e token. Saída: status opcional, bytes consumi
 
 ## Integração futura — Rate Limiting v2
 
-Transporte permanece pendente. Consumir plano SchemaVersion 2, rejeitar schema desconhecido e respeitar LoadRetryPolicy.None e HttpSuccessRule.Completed2xxV1 do [contrato local v2](../03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12). Evidências da extensão pura estão em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md).
+O transporte agora consome o plano SchemaVersion 2, rejeita schema/políticas desconhecidos e respeita LoadRetryPolicy.None e HttpSuccessRule.Completed2xxV1 do [contrato local v2](../03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12). Evidências estão em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md). Ainda falta ligá-lo à agenda e ao ciclo de vida do motor.
 
 Nos headers finais 200–599, capturar uma vez status, valores separados de Retry-After e referência UTC fornecida ao parser. Captura não realizada mantém NotObserved; em 429, captura efetiva sem campo produz Missing; status diferente de 429 produz NotApplicable. Não inferir ausência de Retry-After só por observar 429. Não concatenar/split por vírgula. Passar somente RetryAfterObservation normalizada ao consumidor, sem reter texto bruto; registrar marco de headers separado do terminal. Não tratar 1xx intermediário como final; 101/upgrade não é suportado. Preservar status/IsRateLimited e RetryAfter após falha de corpo; header inválido não muda o desfecho HTTP.
 
-Verificar com fixture 429 completo e seguido de truncamento/timeout/cancelamento, 503 com Retry-After = NotApplicable sem sinal de limitação, duplicados/datas/clamp e 200/202 completo versus corpo incompleto. Provar ausência de retry/espera/adaptação em todos os modos. Enviar Headers validados, inclusive credenciais sintéticas Normal/Diagnostic/Authorized em HTTP loopback conforme [07](../07-SECURITY.md), sem logs ou canários vazando. O validador não verifica a origem da credencial nem distingue segredos reais de sintéticos. Status deve ser contado uma única vez pela futura 008 nos headers, nunca novamente no terminal. Não há testes executados nesta atualização.
+O transporte captura status e Retry-After antes do corpo, preservando ambos em truncamento e cancelamento; testes verificam 429/Retry-After, 503, missing, 200/202, limite de streaming sem Content-Length e cancelamento. Deadline integrado e contagem separada de headers/terminal verificados nas continuações 004/008. Ainda faltam testes dos modos no ciclo local, cabeçalhos duplicados/datas/clamp via transporte, canários/redação e gate final.
 
 ## Decisões técnicas
 
-SocketsHttpHandler/HttpClient, ResponseHeadersRead, proxy/redirect/cookies/decompressão automática desabilitados, pool de vida explícita. Um buffer por operação ativa, devolvido em finally; não compartilhar HttpRequestMessage. Timeout total virá de 004, mantendo suporte a token nesta ficha.
+SocketsHttpHandler/HttpClient, ResponseHeadersRead, proxy/redirect/cookies/decompressão automática desabilitados, pool de vida explícita. Um buffer por operação ativa, devolvido em finally; não compartilhar HttpRequestMessage. Timeout total já integrado pela 004, mantendo suporte a token.
 
 ## Passos de implementação
 
@@ -71,3 +71,13 @@ Interromper corpo acima do teto pode descartar conexão. Pool não elimina limit
 - [ ] Todos os caminhos liberam recursos e passam token ao I/O.
 - [ ] Testes reais de streaming/pool/limites aprovados.
 - [ ] Configuração efetiva do handler consta no plano.
+
+## Evidência histórica parcial — transporte local (2026-10-12)
+
+Implementação em `src/Dinamico.LoadEngine/Transport/LocalHttpTransport.cs`. Um handler/cliente reutilizável por plano usa HTTP/1.1 exato, conecta ao IP loopback fixado mantendo a URI original, desabilita proxy/redirect/cookies/descompressão e limita conexões, headers, pool e corpo. Cada request/response é descartado; payload usa o buffer imutável do plano e o buffer de leitura é devolvido ao ArrayPool. Cancelamento acompanha conexão/envio/leitura. Duração é monotônica, mas timeout total por operação e integração de deadline continuam na FICHA-004.
+
+Testes reais com FICHA-002 verificam reuso da conexão, payload POST, 429 com Retry-After seguido de truncamento, Missing/NotApplicable, streaming chunked até limite, cancelamento após headers, redirect não seguido e sucesso HTTP 200/202. Build/test da solução: 371 testes aprovados antes da ampliação dos casos 200/202 e HEAD; validação final consta no registro da continuação.
+
+## Continuação 008 — 2026-10-17
+
+`SendAsync(index, token, observeHeaders)` entrega `ResponseHeadersObservation` validada com timestamp monotônico/status/Retry-After uma vez antes de consumir o corpo. A sobrecarga anterior permanece compatível. Falha do observador escapa como `TransportObserverException`; não é convertida em sucesso HTTP nem ocultada por classificação de erro de rede. Testes com corpo bloqueado e deadline controlado verificam status na janela anterior ao terminal; detalhes e validação em [008](FICHA-008-METRIC-WINDOWS.md). Transporte permanece parcial; não há host integrado ou fechamento do gate 012.

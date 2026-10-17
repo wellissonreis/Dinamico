@@ -1,4 +1,5 @@
 using System.Net;
+using System.Buffers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -21,6 +22,7 @@ public sealed record HttpFixtureOptions
     public TimeSpan ChunkDelay { get; init; } = TimeSpan.Zero;
     public int BodyBytes { get; init; } = 16;
     public int ChunkBytes { get; init; } = 1024;
+    public bool OmitContentLength { get; init; }
     public bool TruncateBody { get; init; }
     public bool Redirect { get; init; }
     public string? SyntheticCredential { get; init; }
@@ -46,6 +48,7 @@ public sealed class ControlledHttpFixture : IAsyncDisposable
     private long _receivedCount;
     private long _connectionCount;
     private long _activeRequests;
+    private long _requestBodyBytesReceived;
 
     private ControlledHttpFixture(HttpFixtureOptions options)
     {
@@ -100,6 +103,7 @@ public sealed class ControlledHttpFixture : IAsyncDisposable
     public long ReceivedCount => Interlocked.Read(ref _receivedCount);
     public long ConnectionCount => Interlocked.Read(ref _connectionCount);
     public long ActiveRequests => Interlocked.Read(ref _activeRequests);
+    public long RequestBodyBytesReceived => Interlocked.Read(ref _requestBodyBytesReceived);
     public string Summary => FormattableString.Invariant(
         $"ControlledHttpFixture: received={ReceivedCount}, connections={ConnectionCount}, active={ActiveRequests}");
 
@@ -190,6 +194,22 @@ public sealed class ControlledHttpFixture : IAsyncDisposable
                 _shutdown.Token, context.RequestAborted);
             CancellationToken token = cancellation.Token;
             token.ThrowIfCancellationRequested();
+            byte[] requestBuffer = ArrayPool<byte>.Shared.Rent(4 * 1024);
+            try
+            {
+                while (true)
+                {
+                    int read = await context.Request.Body.ReadAsync(requestBuffer.AsMemory(0, 4 * 1024), token)
+                        .ConfigureAwait(false);
+                    if (read == 0)
+                        break;
+                    Interlocked.Add(ref _requestBodyBytesReceived, read);
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(requestBuffer);
+            }
             await DelayAsync(_options.HeaderDelay, token).ConfigureAwait(false);
 
             bool destination = _options.Redirect && context.Request.Path == "/destination";
@@ -220,7 +240,8 @@ public sealed class ControlledHttpFixture : IAsyncDisposable
             }
 
             context.Response.ContentType = "application/octet-stream";
-            context.Response.ContentLength = _options.BodyBytes;
+            if (!_options.OmitContentLength)
+                context.Response.ContentLength = _options.BodyBytes;
             await context.Response.StartAsync(token).ConfigureAwait(false);
             await context.Response.Body.FlushAsync(token).ConfigureAwait(false);
             if (HttpMethods.IsHead(context.Request.Method))

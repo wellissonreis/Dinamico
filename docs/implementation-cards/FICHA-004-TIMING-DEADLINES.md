@@ -1,6 +1,6 @@
 # FICHA-004 — Duração monotônica e deadline por operação
 
-Prioridade: P0. Complexidade: M. Marco: M1. Status: proposta de integração futura; não implementada.
+Prioridade: P0. Complexidade: M. Marco: M1. Status: implementada e validada em 2026-10-13; gate integrado M1 pendente.
 
 ## Objetivo
 
@@ -32,11 +32,11 @@ Entrada: request validado, deadline e token de parada. Saída: `RequestObservati
 
 ## Integração futura — Rate Limiting v2
 
-Medição/deadline permanecem pendentes. Seguir o [contrato local v2](../03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12); evidências do recorte puro estão em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md).
+Medição/deadline implementados em `Timing/OperationDeadline.cs` e integrados ao transporte. Seguir o [contrato local v2](../03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12); evidências estão em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md).
 
 Preservar status 429, IsRateLimited e RetryAfterObservation após timeout, cancelamento ou falha de leitura, com um só desfecho terminal. Falha ou cancelamento não converte NotObserved em Missing: preservar a evidência capturada, ou a indicação de captura não realizada. 429 completo entra na população HTTP completa, mas não em http_success; 2xx incompleto não satisfaz Completed2xxV1. O instante UTC dos headers serve somente ao parser de datas; duração/deadline continuam monotônicos. Retry-After não cria timer de espera ou nova tentativa.
 
-Testar 429 com headers rápidos/corpo parado, EOF concorrente com timeout/cancelamento, 503 com Retry-After sem classificação de limitação e salto de UTC sem efeito na duração. A incerteza de relógio da data deve permanecer explícita. Testes são futuros; esta atualização não os executa.
+Testar 429 com headers rápidos/corpo parado, EOF concorrente com timeout/cancelamento, 503 com Retry-After sem classificação de limitação e salto de UTC sem efeito na duração. A incerteza de relógio da data deve permanecer explícita. Esses cenários estão cobertos pela suíte da retomada; ver evidências abaixo.
 
 ## Decisões técnicas
 
@@ -68,6 +68,10 @@ I/O cancelável é cooperativo; pausas do processo afetam precisão. Timeouts ce
 
 ## Definição de pronto
 
-- [ ] Sem timers/fontes de cancelamento retidos após conclusão.
-- [ ] Corridas de término e cancelamento verificadas.
-- [ ] Populações de duração aderem a 03.
+- [x] Sem timers/fontes de cancelamento retidos após conclusão.
+- [x] Corridas de término e cancelamento verificadas.
+- [x] Populações de duração aderem a 03.
+
+## Evidência da retomada
+
+`TimingDeadlineTests.cs` cobre conversão inteira verificada, ordenações de EOF/timeout/cancelamento, timer atrasado, saltos de UTC, descarte e I/O real. Recuperado código pendente e validado em Release; detalhes no registro de entrega. Agregação das populações depende de 007/008.
