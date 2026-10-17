@@ -75,3 +75,52 @@ Verificação nesta continuação:
 Logs CLI informaram “tokens used”: fixture 47.270; testes 34.248. Não forneceram divisão entrada/cache/saída; esses valores são o agregado reportado pela CLI, sem inferir categorias ou consumo do coordenador. Executores terminaram; painéis tmux permanecem navegáveis para consulta, sem agentes ociosos executando.
 
 Próximo passo: transporte 003, usando esta fixture para captura efetiva de status/Retry-After e preservação de status em falhas de corpo. Não antecipar scheduler/agregação distribuída. Ausência de retry do motor e invariância open-loop continuam sem evidência operacional nesta etapa. A fixture no mesmo host não mede capacidade de produção.
+
+Na conferência final, o histórico passou a conter `59a7858 Initial commit` e o Git estava limpo, incluindo os novos arquivos da fixture. Esse commit surgiu externamente durante o trabalho; o coordenador não executou commit nem alterou o índice. Ajustes finais de status/evidência posteriores permanecem no working tree.
+
+## Continuação — transporte HTTP 003 parcial (2026-10-12)
+
+Verificação inicial desta sessão: branch `main`; alterações já existentes em README, FICHA-037 e neste registro foram preservadas. A sessão tmux anexada foi reutilizada e renomeada para `dinamico-m1`, com o painel 0 de coordenação, painel 1 de testes e painel 2 para o mapa da suíte. Workers read-only concluídos: PIDs 9366 (`gpt-6.1-sol`, medium; revisão dos contratos de 003) e 9367 (`gpt-6.1-sol`, low; inventário de testes). Sem worktrees e sem commits.
+
+Implementado `LocalHttpTransport` reutilizável por plano validado: HTTP/1.1 exato; conexão presa ao IP loopback; TLS com identidade da URI preservada; proxy, redirect, cookies e decompression automática desativados; pool/conexões/headers limitados; `ResponseHeadersRead`, buffer devolvido ao ArrayPool e contagem de bytes até o teto configurado. Cada chamada possui request/content/response próprios e recebe o token de cancelamento até conexão/envio/leitura. Status e Retry-After são capturados antes do corpo, sem reter texto bruto, e permanecem na observação quando o corpo falha. Não há timeout total por request neste incremento; a classificação de deadline depende da 004. A fixture agora oferece corpo sem Content-Length e soma bytes de request recebidos, sem guardar requests.
+
+Testes integrados com a fixture cobrem payload/reuso de conexão, 429 + Retry-After antes de truncamento, Missing/NotApplicable, streaming sem Content-Length, cancelamento após headers, redirect sem seguimento, HTTP 200/202 e HEAD. A suíte completa passou após corrigir uma expectativa de teste que somava o payload das duas chamadas:
+
+- `dotnet.exe test Dinamico.slnx --configuration Release --no-restore --logger 'console;verbosity=minimal'`: **374 aprovados**, zero falhas/ignorados; build Release bem-sucedido. Log: `/tmp/dinamico-m1-final-tests.log`.
+- Reexecução sem build com logger TRX: `TestResults/M1Transport/m1-transport.trx`, 374 aprovados, zero falhas/ignorados.
+
+FICHA-003 permanece parcial: ainda faltam deadline/timeout 004, captura de outros vetores HTTP pelo transporte, integração à agenda/admissão, métricas/janelas, ciclo local, observabilidade, CLI e gate 012. Em particular, não há evidência de invariância open-loop, agregação de status uma única vez, canários em logs/relatórios ou calibração de recursos. FICHA-037 permanece M1 parcial. Próxima tarefa recomendada: implementar a 004 em dependência direta deste transporte e depois integrar 005/006; preservar a fixture e comparar recebimentos com operações iniciadas/concluídas.
+
+## Retomada do trabalho pendente — 2026-10-13
+
+O working tree já continha `Timing/`, `Scheduling/ArrivalSchedule.cs`, `ArrivalScheduler.cs`, `ISchedulerWait.cs`, `TimingDeadlineTests.cs` e `ArrivalSchedulerTests.cs`, sem evidência atualizada nas fichas. Não foi possível atribuir a interrupção a um limite específico de tokens; o estado real comprova implementação ainda não compilável/documentada. Preservadas as alterações preexistentes. A primeira suíte revelou CS9124 no FakeClock dos testes da agenda: o parâmetro primário era capturado e também usado no inicializador de campo. Corrigido usando a propriedade Origin para guardar a origem.
+
+Deadline 004 e agenda 005 agora compilam e passam testes. O deadline integrado cobre envio/leitura e preserva status/Retry-After em timeout/cancelamento; os testes determinísticos verificam corridas, timers e UTC. Agenda tem aritmética racional, microbateladas limitadas, saltos O(1), relógio/espera substituíveis e partição matemática futura. A invariância dos modos foi testada com respostas fictícias; ainda falta o gate operacional completo com os três modos e janelas reais.
+
+Implementada FICHA-006 em `Scheduling/BoundedAdmission.cs`: aquisição imediata sem fila, no máximo C operações, callback terminal, started/completed/in-flight/pico, recusas concurrency_limit/policy, fechamento de admissão e drain. Não retém tarefas concluídas e não usa Task.Run por operação. Exceções inesperadas do transporte viram InternalFailed; falha do consumidor fecha admissão, libera slot e é reportada ao host pelo drain. Cancelar a espera de drain não cancela automaticamente as operações; o host deve passar seu token ao iniciar operações.
+
+`BoundedAdmissionTests.cs` cobre saturação/liberação, concorrência entre produtores, falhas síncronas/assíncronas, cancelamento, falha do consumidor e 100.000 operações. Teste integrado com agenda simulada e HTTP real lento concilia 100 chegadas, 2 inícios, 98 recusas por concorrência, 2 recebimentos na fixture e 2 terminais 429 completos. Não há retry/adaptação por Retry-After. A fixture no mesmo host e o relógio simulado não medem capacidade ou precisão temporal real do gerador.
+
+Execução em tmux: sessão existente `0` preservada com seu painel `0:0.0`; criada janela `0:1` (`validacao`) para testes/build/Git. Nenhum processo do usuário encerrado, nenhuma sessão renomeada, nenhum commit ou worktree criado.
+
+Validação final: `dotnet.exe test Dinamico.slnx --configuration Release --no-restore --logger "trx;LogFileName=continuacao.trx" --results-directory TestResults/Continuacao`: **455 aprovados**, zero falhas/ignorados. TRX: `TestResults/Continuacao/continuacao.trx`; log `/tmp/dinamico-continuacao-final.log`. Build Release sem restore e `git diff --check` executados na mesma janela tmux; logs `/tmp/dinamico-continuacao-build.log` e `/tmp/dinamico-continuacao-diff.log`.
+
+Próximas dependências pendentes: 007 histograma/codec, 008 janelas/contadores e Retry-After agregado, 009 ciclo local, 010 observabilidade, 011 CLI/relatório e 012 calibração/aceite. Transporte 003 ainda parcial quanto aos vetores restantes; M1 e FICHA-037 não estão concluídos. Marcos remotos permanecem futuros.
+
+
+## Continuação atual — FICHA-007 (2026-10-17)
+
+Histograma `log2-32-v1` e codec implementados em `src/Dinamico.LoadEngine/Metrics/`, sem pacote adicional. Tabela canônica de 833 limites exatos e 834 contadores UInt64 com overflow; registro, N/soma/min/max, P50/P95/P99 por rank inteiro e merge puro. Codec v1 little-endian de 6.760 bytes com schema, checksum SHA-256 e validação estrutural/semântica; detalhes e comandos completos na [FICHA-007](implementation-cards/FICHA-007-HISTOGRAM.md#entrega-e-validação--2026-10-17). Contrato 03 e ADR-005 atualizados com as decisões de representação; nenhuma janela/consumidor antecipado.
+
+Validação desta entrega: restore locked (sem fallback inexistente do Visual Studio), 17 testes direcionados aprovados, build Release com zero avisos/erros, suíte completa com **472 aprovados**, zero falhas/ignorados; `git diff --check` aprovado. TRX: `TestResults/Ficha007/ValidatedDirected/welli_WELL-PC_2026-10-17_17_25_34.trx` e `TestResults/Ficha007/ValidatedSuite/welli_WELL-PC_2026-10-17_17_25_38.trx`. Lockfile inalterado. A tentativa anterior falhou em build por MSB4018/fallback inválido; a suíte de 469 com binário anterior não vale como validação final. Os 455 testes em `TestResults/Continuacao/continuacao.trx` são evidência histórica de 13/10, preservada acima.
+
+Próximo passo: 008 janelas/contadores, expondo evento de headers do transporte separado do término da operação para status e Retry-After na janela correta. Transporte 003 parcial, CLI informativa; 008–012, M1 e FICHA-037 ainda incompletos. Não houve implementação remota, refatoração de componentes anteriores, dependência nova ou commit.
+
+
+## Continuação atual — FICHA-008 (2026-10-17)
+
+Contadores/janelas locais implementados: registro serializado de inícios, drops, headers e terminais, snapshots imutáveis de 5 s, vazias/drain/parcial, manifesto de cobertura, dois histogramas, consolidação contígua com último gauge e sink limitado a seis janelas/240 KiB de reserva calculada. Callback explícito de headers do transporte precede o corpo e mantém status/Retry-After separados do terminal. Codec/schema de janela 1, little-endian, 17.832 bytes, SHA-256 e validação estrutural/semântica. Decisões, layout, arquivos, comandos e pendências na [FICHA-008](implementation-cards/FICHA-008-METRIC-WINDOWS.md).
+
+Validação: restore locked sem alteração do lockfile; **24 casos novos, 87 direcionados e 496/496 na suíte completa**, zero falhas/ignorados; build Release zero avisos/erros; `git diff --check` aprovado. TRX: `TestResults/Ficha008/ValidatedDirected/welli_WELL-PC_2026-10-17_17_39_09.trx` e `TestResults/Ficha008/ValidatedSuite/welli_WELL-PC_2026-10-17_17_39_18.trx`. A primeira rodada teve uma asserção incorreta do subtipo de exceção (84 aprovados/1 falha), corrigida; resultados finais recompilados acima. Os 472 testes da 007 e 455 de 13/10 permanecem históricos.
+
+Seis janelas tmux temporárias ociosas das validações 007/008 foram fechadas após conferir shell sem processos filhos; processos e sessões do usuário preservados. Nenhuma ficha futura foi cancelada por ainda não estar em uso: são dependências do plano. Próxima ficha é 009 (controlador, geração/drain/flush); 009–012 continuam pendentes, CLI informativa, transporte 003 parcial e M1/FICHA-037 incompletos. Sem commit, SQL/CP/Kubernetes/UI, benchmark de contenção ou medição de RSS nesta continuação.

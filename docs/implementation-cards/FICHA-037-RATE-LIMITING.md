@@ -1,18 +1,18 @@
 # FICHA-037 — Identificação e diagnóstico de Rate Limiting
 
-Prioridade: P0 para diagnóstico confiável. Complexidade: G no conjunto; entregas por marco. Marcos: M1–M6. Status: **M1 parcial**; contratos/validação v2 e parser puro sobre a FICHA-001 entregues; continuação adiciona a fixture local 002. Integrações e marcos seguintes pendentes. Data: 2026-10-12.
+Prioridade: P0 para diagnóstico confiável. Complexidade: G no conjunto; entregas por marco. Marcos: M1–M6. Status: **M1 parcial**; contratos/validação v2, fixture 002, transporte 003 parcial, deadline 004, agenda 005, admissão 006, histograma/codec 007 e acumulador/janelas 008 implementados. Ciclo local 009, relatório e marcos seguintes pendentes. Data: 2026-10-17.
 
 ## Objetivo
 
 Identificar limitações sinalizadas pela API e mostrar seu impacto na carga observada, sem confundir requisições enviadas, respostas HTTP e processamento de negócio. Preservar precisão, consumo limitado de recursos e segurança das credenciais.
 
-## Recorte anterior e continuação (2026-10-12)
+## Registro histórico do recorte anterior e continuação (2026-10-12)
 
 Antes deste recorte, somente a FICHA-001 estava implementada: contratos imutáveis, validação local e observação terminal em .NET 10, com **119 testes históricos** de 2026-10-09. O host é informativo. Não existem HTTP/fixture/scheduler/agregação/logs/relatório/CP/UI funcionais, nem persistência de execuções ou workers Kubernetes implementados.
 
 Na entrega anterior, a autorização cobria somente extensão dos contratos, validação e parser puro Retry-After: modos, retry None, regra 2xx-v1, índice de header e declaração local. A seção final [Rate Limiting — contrato local v2](../03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12) fixa os contratos. Evidências estão em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md). Contratos/parser verificados: 309 testes aprovados e build Release sem avisos/erros; integrações HTTP permanecem pendentes. Não criar transporte, acumulador, serviços, migrations, telas ou novos ADRs neste recorte.
 
-A continuação entrega a fixture 002; ver evidências em RATE-LIMITING-DELIVERY. FICHA-037 permanece M1 parcial, sem aceite integrado de transporte/contadores/relatório e sem conclusão integral. Os requisitos seguintes são integrações futuras, salvo contratos locais v2 explicitamente autorizados.
+A continuação entrega a fixture 002 e integra parcialmente o transporte HTTP da 003; ver evidências em RATE-LIMITING-DELIVERY. FICHA-037 permanece M1 parcial: transporte ainda precisa ser ligado ao motor, e agenda/contadores/janelas/logs/relatório e o gate 012 continuam pendentes. Os requisitos seguintes são integrações futuras, salvo contratos locais v2 explicitamente autorizados.
 
 ## Contexto arquitetural
 
@@ -40,7 +40,7 @@ Bypass por header arbitrário, alteração da infraestrutura do cliente, rotaç�
 
 | Etapa | Fichas relacionadas | Entrega quando os componentes existirem |
 |---|---|---|
-| M1 — motor local | 001–012 | Recorte autorizado: contratos/validação/parser puro. Futuro: fixture, transporte, agenda, agregação e relatório CLI; somente loopback |
+| M1 — motor local | 001–012 | Entregues contratos/validação/parser puro, fixture 002, deadline 004, agenda 005, admissão 006, histograma/codec 007 e acumulador/janelas 008; transporte 003 parcial. Pendentes: ciclo local, observabilidade, relatório CLI e gate 012; somente loopback |
 | M2 — persistência | 013–015 | Versionamento de janelas, ingestão idempotente e consulta dos indicadores |
 | M3 — controle protegido | 018–022 | Referências de credenciais, revisão imutável, autorização e contratos REST |
 | M4/M5 — distribuição | 023–028 | IPs de saída conhecidos, evidência de NAT, consolidação e falhas parciais |
@@ -62,7 +62,7 @@ Em M3, aplicar o cofre lógico já previsto em 07: cifrar valores persistidos, e
 
 No recorte local, manter loopback, validação pura e compatibilidade explícita de schema; não criar cofre. Conforme [07](../07-SECURITY.md), HTTP com credenciais sintéticas em loopback é permitido no laboratório. Usar somente segredos sintéticos nesses testes; o validador não distingue segredos reais de sintéticos. HTTPS permanece obrigatório para o SaaS remoto.
 
-### Contadores e denominadores — integração futura (008/011)
+### Contadores e denominadores — 008 implementada; integração ao ciclo/relatório futura (009/011)
 
 | Indicador | Definição |
 |---|---|
@@ -90,7 +90,7 @@ RetryAfterObservation é imutável e não retém texto bruto. Kind: NotObserved 
 
 Parser puro recebe status, lista de valores brutos e UTC do chamador; só avalia 429. Lista vazia após captura efetiva = Missing; múltiplos = Invalid, sem concatenar/split por vírgula. Campo ≤128 caracteres antes de trim SP/HTAB. Delta só admite dígitos ASCII não negativos; overflow satura ao teto, mas toda a sintaxe deve ser verificada. Data aceita os formatos HTTP do protocolo. Sem leitura de relógio, I/O, espera ou alteração de plano; texto bruto ausente também dos erros. Header inválido não altera desfecho HTTP.
 
-Integração futura na 003 entrega a observação nos headers; a 008 agrega contagens fixas por categoria (incluindo NotObserved, sem contabilizá-lo como Missing), clamp/incerteza e min/max de Delay válido (null sem valores), junto ao registro do status. Merge soma contagens com overflow verificado e usa min/max existentes, em codec/janela versionados; sem labels por valor, texto bruto ou listas de observações. A 011 apresenta o resumo. Nenhum desses componentes é entregue pelo parser.
+O callback de headers da 003 entrega a observação antes do corpo; a 008 agrega contagens fixas por categoria (incluindo NotObserved, sem contabilizá-lo como Missing), clamp/incerteza e min/max de Delay válido (null sem valores), junto ao registro do status. Merge soma contagens com overflow verificado e usa min/max existentes, em codec/janela versionados; sem labels por valor, texto bruto ou listas de observações. A 011 apresenta o resumo. Nenhum desses componentes é entregue pelo parser.
 
 LoadRetryPolicy.None é explícita no plano e futuro relatório; 429/Retry-After não mudam RPS, concorrência ou agenda. Outras políticas são recusadas. Retry de telemetria é independente de retry de carga. Preservar ADR-008 sem alteração.
 
@@ -137,8 +137,8 @@ Os valores não representam capacidade medida do projeto nem os limites locais a
 ## Passos do recorte e integrações futuras
 
 1. Integrar contratos/validação/parser puro ao schema local 2 conforme a seção final de 03; registrar evidências reais em RATE-LIMITING-DELIVERY pelo coordenador.
-2. Futuramente, 002/003 fornecem fixture e captura de 429/Retry-After; 004 preserva status e duração monotônica; 005 mantém agenda open-loop idêntica nos três modos.
-3. Futuramente, 008 agrega com contagem única, denominadores e cobertura; 010 verifica sigilo/custo; 011 apresenta relatório sanitizado; 012 fecha o gate integrado de M1.
+2. Fixture 002 entregue; 003 captura status/Retry-After na observação terminal, 004 preserva duração monotônica, 005 mantém agenda open-loop e 006 limita admissão. Histograma/codec 007 entregue. A 008 expõe o evento de headers separado da conclusão terminal e implementa o acumulador; ligação completa ao ciclo fica na 009.
+3. A 008 agrega eventos, denominadores e cobertura; o dono de cada operação deve garantir registro único. Futuramente, 009 liga o ciclo; 010 verifica sigilo/custo; 011 apresenta relatório sanitizado; 012 fecha o gate integrado de M1.
 4. M2/M3 adicionam persistência e credenciais protegidas; M4/M5 verificam NAT/egress e consolidação; M6 entrega UI/SSE. Cada etapa depende de evidência própria.
 
 Coordenação desta entrega exclusivamente por tmux, com modelos/esforços conferidos e ownership por arquivo. Registro em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md). Nas próximas etapas, revalidar estágio e modelos disponíveis, fixar semânticas antes de delegar, preservar ownership, revisar integrações e registrar testes reais. Não criar worktrees salvo conflito concreto.
@@ -161,7 +161,11 @@ Coordenação desta entrega exclusivamente por tmux, com modelos/esforços confe
 | Sigilo | Segredos-canário ausentes em logs, erros, SSE, relatórios e respostas de edição; isolamento e revogação |
 | Custo | Nenhum log por request, cardinalidade fixa e buffers dentro dos tetos existentes |
 
-No recorte atual, somente testes de contratos/validação e parser puro são aplicáveis; resultados em RATE-LIMITING-DELIVERY: 309 aprovados, zero falhas/ignorados. Fixture e testes HTTP locais são entregues na continuação 002; testes integrados do motor continuam futuros nas fichas 003–012. Testes distribuídos e de UI dependem de M4/M5 e M6. Não simular entrega Kubernetes apenas com teste unitário.
+Registro histórico das continuações 001–003: no recorte anterior, contratos/validação e parser puro totalizaram 309 testes aprovados. A continuação 002 adicionou 56 casos da fixture (365 no total); a continuação 003 adiciona 9 testes do transporte, elevando a suíte a 374 aprovados, zero falhas/ignorados. Testes e comportamento do scheduler, ciclo local, agregação, observabilidade, relatório e gate integrado continuam pendentes nas fichas 004–012. Testes distribuídos e de UI dependem de M4/M5 e M6. Não simular entrega Kubernetes apenas com teste unitário.
+
+Registro da continuação 007 em 2026-10-17: deadline 004, agenda 005 e admissão 006 já implementados (455 testes históricos de 13/10); histograma/codec 007 agora validado com 17 direcionados e suíte de 472 testes, build Release sem avisos/erros. Evidências na [FICHA-007](FICHA-007-HISTOGRAM.md) e em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md). Janelas 008 e fichas 009–012 continuam pendentes. Expor recebimento de headers independentemente da conclusão terminal é pré-requisito para status na janela correta. M1 e FICHA-037 permanecem incompletos.
+
+Continuação atual 008 (2026-10-17): callback de headers separado do terminal, contadores/janelas imutáveis, sink limitado e codec/consolidação local implementados. **24 casos novos, 87 direcionados e 496 na suíte completa**, build Release sem avisos/erros. Evidências e limitações na [FICHA-008](FICHA-008-METRIC-WINDOWS.md). A 009 ainda deve integrar geração/drain/flush; M1 e FICHA-037 seguem incompletos.
 
 ## Critérios de aceite
 
@@ -175,7 +179,9 @@ Não é possível localizar o componente limitador apenas pelo status; política
 
 - [x] Contratos locais revisados e incorporados aos documentos canônicos; etapas futuras identificadas.
 - [x] M1 parcial: contratos/validação/parser puro v2 implementados e verificados (309 testes na suíte).
-- [ ] M1 integrado: fixture, transporte, agenda, contadores, logs e relatório verificados.
+- [x] Fixture HTTP local 002 e seus cenários verificados na continuação.
+- [x] Transporte HTTP 003 parcialmente implementado e verificado com a fixture local.
+- [ ] M1 integrado: transporte, agenda, contadores, logs e relatório verificados.
 - [ ] M2/M3: persistência, credenciais e contratos protegidos verificados.
 - [ ] M4/M5: egress, NAT, agregação e falhas distribuídas verificados.
 - [ ] M6: configuração, acompanhamento e relatório React verificados.

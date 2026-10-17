@@ -1,12 +1,12 @@
 # Revisão arquitetural e pauta de decisão
 
-Estado atual (2026-10-12): contratos/validação v2 e parser Retry-After implementados (001/037). A continuação adiciona a fixture HTTP loopback da FICHA-002 e seus testes. FICHA-037 permanece **M1 parcial**: transporte do motor, scheduler, agregação, relatório, Control Plane e UI pendentes. Evidências e limites em [RATE-LIMITING-DELIVERY](RATE-LIMITING-DELIVERY.md).
+Estado atual (2026-10-17): contratos/validação v2, fixture 002, transporte 003 parcial, deadline 004, agenda 005, admissão limitada 006, histograma/codec 007 e contadores/janelas 008 implementados. FICHA-037 permanece **M1 parcial**: ciclo local 009, observabilidade, relatório e gate 012 pendentes. Control Plane e UI pertencem a marcos posteriores. Evidências em [RATE-LIMITING-DELIVERY](RATE-LIMITING-DELIVERY.md).
 
 A seção final de [03 — contrato local v2](03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12) prevalece sobre as propostas antigas: SchemaVersion 2, retry None, modos Normal/Authorized/Diagnostic e `HttpSuccessRule.Completed2xxV1`. Authorized exige TestCredentialHeaderIndex e TestAuthorizationDeclared; os demais modos também aceitam credenciais. É declaração local, não grant. Evidências registradas em [RATE-LIMITING-DELIVERY](RATE-LIMITING-DELIVERY.md).
 
 RetryAfterKind tem default NotObserved (captura não realizada); NotApplicable identifica status diferente de 429, e Missing exige captura efetiva em 429 sem campo. Não inferir ausência do header a partir de NotObserved. Conforme [07 — segurança](07-SECURITY.md), HTTP com credenciais sintéticas em loopback é permitido no laboratório; o validador não verifica emissão, propriedade ou validade da credencial nem distingue segredos reais de sintéticos. Usar somente segredos sintéticos nesses testes; HTTPS e os controles remotos permanecem requisitos de M3.
 
-Integração futura: 002/003 verificam 429 e 503 com Retry-After e falhas após headers; 004 preserva status e duração monotônica; 005 prova open-loop sem retry/adaptação; 008 verifica contagem única, denominadores, drain e cobertura; 010/011 verificam canários e apresentação sanitizada; 012 fecha o aceite integrado. NAT e egress são gates apenas de M4/M5; cofre/referências pertencem a M3. Não há novo ADR ou componente futuro criado pelo recorte.
+Histograma/codec 007 e contadores/janelas 008 verificados; integração pendente: 009 ciclo local, 010/011 observabilidade/relatório e 012 aceite integrado. 003 já captura status e Retry-After com corpo streaming limitado; deadline integrado e ligação à agenda/admissão verificados em teste; ainda requer casos restantes e integração ao host. NAT/egress são gates apenas de M4/M5; cofre/referências pertencem a M3. Não há novo ADR ou serviço introduzido.
 
 ## Registro histórico da revisão (2026-10-08)
 
@@ -79,4 +79,4 @@ Ordem recomendada: 001 contratos → 002 fixture → 003 transporte → 004 temp
 
 Antes da primeira implementação, estudar async/await e descarte, HttpClient/pool/streaming, cancelamento, tempo monotônico, open-loop versus concorrência, percentis/histogramas e testes determinísticos. Leitura sugerida: 01 para objetivo, 03 para motor e 001 para primeiro passo. Transações, leases e segurança Kubernetes vêm antes dos marcos que dependem deles.
 
-Próximo passo proposto: revisar Q01/Q02 e os contratos de 03 com o proponente. A aprovação e autorização para implementar serão uma atividade posterior; esta entrega não contém código de produção.
+Próximo passo histórico da revisão de 2026-10-08: revisar Q01/Q02 e os contratos de 03 com o proponente; aquela entrega não continha código de produção. A continuação atual da FICHA-008 está autorizada e validada; próxima integração: 009, ligando o evento de headers e os terminais ao acumulador durante geração/drain.

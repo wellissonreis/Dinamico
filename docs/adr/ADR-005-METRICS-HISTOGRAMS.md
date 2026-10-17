@@ -1,6 +1,6 @@
 # ADR-005 — Agregação limitada e histograma logarítmico fixo
 
-Status: Proposto. Data: 2026-10-08.
+Status atual: histograma implementado na FICHA-007 (2026-10-17); janelas/lock implementados na 008; integração ao ciclo local pendente. Registro original: Proposto, 2026-10-08.
 
 ## Contexto
 
@@ -33,3 +33,11 @@ Quantização, payload denso e contenção do acumulador precisam ser aceitos/me
 ## Condições para revisar a decisão
 
 Erro de percentil não atende usuários, formato domina armazenamento ou lock limita geração. Comparar HDR validado, compressão ou shards com mesmos vetores de teste; nunca mesclar schemas incompatíveis.
+
+## Registro de implementação — 2026-10-17
+
+A FICHA-007 materializa somente o componente matemático: tabela canônica exata, memória fixa, quantis por rank e merge puro, soma/min/max exatos em nanossegundos. UInt64 com overflow verificado; rank e validação de somas possíveis usam UInt128 intermediário. Codec v1 little-endian fixo com schema explícito, SHA-256 e validação semântica; detalhes normativos em [03](../03-LOAD-ENGINE-DESIGN.md#histograma-e-p50p95p99) e na [ficha](../implementation-cards/FICHA-007-HISTOGRAM.md). Não altera a resolução aceita; os vetores determinísticos verificam o limite de erro. Janelas de 5 s, dois histogramas por acumulador, lock e rotação permanecem integração futura da 008.
+
+## Continuação — janelas locais, 2026-10-17
+
+A 008 implementa lock, rotação monotônica, snapshots imutáveis, dois histogramas, sink limitado e consolidação local contígua. Codec/schema de janela próprios; evidências na [FICHA-008](../implementation-cards/FICHA-008-METRIC-WINDOWS.md). O registro anterior da 007 permanece histórico. Contenção ainda não medida; controlador 009, observabilidade/relatório e gate 012 pendentes.
