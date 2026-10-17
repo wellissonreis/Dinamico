@@ -1,6 +1,6 @@
 # FICHA-006 — Admissão com concorrência limitada
 
-Prioridade: P0. Complexidade: M. Marco: M1. Status: proposta.
+Prioridade: P0. Complexidade: M. Marco: M1. Status: implementada e validada em 2026-10-13; integração ao host 009 pendente.
 
 ## Objetivo
 
@@ -60,6 +60,12 @@ Escolher C baixo limita RPS; alto aumenta RAM/sockets. Fila interna do handler a
 
 ## Definição de pronto
 
-- [ ] Suíte de liberação/concorrência/cancelamento aprovada.
-- [ ] Quantidade de objetos acompanhados é limitada por C.
-- [ ] Saturação aparece como dado do gerador, sem retry oculto.
+- [x] Suíte de liberação/concorrência/cancelamento aprovada.
+- [x] Quantidade de objetos acompanhados é limitada por C.
+- [x] Saturação aparece como dado do gerador, sem retry oculto.
+
+## Evidência da implementação
+
+`Scheduling/BoundedAdmission.cs`: reserva não bloqueante sob lock curto, callback terminal sem fila, started/completed/in-flight/pico e recusas por concorrência/policy. Sem Task.Run por operação ou retenção de tarefas concluídas. StopAdmissions fecha admissão; DrainAsync espera operações ativas sem cancelar seu I/O. O token passado a TryStart permite cancelamento das operações pelo host futuro. Falha do consumidor fecha admissão e é reportada no drain.
+
+`BoundedAdmissionTests.cs` cobre saturação/liberação, chamadas simultâneas, falhas síncronas/assíncronas, cancelamento, falha do consumidor e 100.000 operações. Integração com transporte HTTP real lento e agenda simulada concilia planned=100, started=2, concurrency_limit=98 e duas respostas 429 completas, sem retry. Esse teste verifica contabilização e independência da agenda, não capacidade do host. Detalhes em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md).
