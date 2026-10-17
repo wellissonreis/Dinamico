@@ -42,19 +42,25 @@ public sealed class BoundedAdmission
             _concurrencyDrops, _policyDrops); }
     }
 
-    public bool TryStart(ArrivalIntent arrival, CancellationToken cancellationToken = default)
+    public bool TryStart(ArrivalIntent arrival, CancellationToken cancellationToken = default) =>
+        TryStart(arrival, cancellationToken, out _);
+
+    public bool TryStart(ArrivalIntent arrival, CancellationToken cancellationToken, out NotStartedReason? rejection)
     {
+        rejection = null;
         ArgumentOutOfRangeException.ThrowIfNegative(arrival.Index);
         lock (_gate)
         {
             if (_stopped || cancellationToken.IsCancellationRequested)
             {
                 _policyDrops = checked(_policyDrops + 1);
+                rejection = NotStartedReason.Policy;
                 return false;
             }
             if (_inFlight == _capacity)
             {
                 _concurrencyDrops = checked(_concurrencyDrops + 1);
+                rejection = NotStartedReason.ConcurrencyLimit;
                 return false;
             }
             _started = checked(_started + 1);

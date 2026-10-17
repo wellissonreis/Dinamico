@@ -104,6 +104,8 @@ public sealed class MetricWindowSink
     public const int MaximumReservedBytes = MaximumCapacity * ReservedBytesPerWindow;
     private readonly object gate = new();
     private readonly Queue<MetricWindow> queue;
+    private TaskCompletionSource readable = NewSignal();
+    private bool complete;
     public MetricWindowSink(int capacity = MaximumCapacity)
     {
         if (capacity is < 1 or > MaximumCapacity) throw new ArgumentOutOfRangeException(nameof(capacity));
@@ -116,10 +118,52 @@ public sealed class MetricWindowSink
     {
         lock (gate)
         {
-            if (queue.Count == Capacity) return false;
+            if (complete || queue.Count == Capacity) return false;
             queue.Enqueue(window);
+            readable.TrySetResult();
             return true;
         }
     }
-    public bool TryRead(out MetricWindow? window) { lock (gate) return queue.TryDequeue(out window); }
+    public bool TryRead(out MetricWindow? window)
+    {
+        lock (gate)
+        {
+            bool read = queue.TryDequeue(out window);
+            ResetSignalIfEmpty();
+            return read;
+        }
+    }
+
+    // The lifecycle has a single consumer and acknowledges only after output confirms the write.
+    internal async ValueTask<MetricWindow?> PeekAsync(CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            Task signal;
+            lock (gate)
+            {
+                if (queue.TryPeek(out var window)) return window;
+                if (complete) return null;
+                signal = readable.Task;
+            }
+            await signal.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+    internal void Acknowledge(MetricWindow window)
+    {
+        lock (gate)
+        {
+            if (!queue.TryPeek(out var head) || !ReferenceEquals(head, window))
+                throw new InvalidOperationException("Metric acknowledgement is out of order.");
+            queue.Dequeue();
+            ResetSignalIfEmpty();
+        }
+    }
+    internal ImmutableArray<MetricWindow> Snapshot() { lock (gate) return ImmutableArray.CreateRange(queue); }
+    internal void Complete() { lock (gate) { complete = true; readable.TrySetResult(); } }
+    private void ResetSignalIfEmpty()
+    {
+        if (queue.Count == 0 && !complete && readable.Task.IsCompleted) readable = NewSignal();
+    }
+    private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 }

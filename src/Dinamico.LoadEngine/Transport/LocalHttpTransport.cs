@@ -10,7 +10,7 @@ using Dinamico.LoadEngine.Timing;
 namespace Dinamico.LoadEngine.Transport;
 
 /// <summary>Reusable HTTP/1.1 transport for one validated loopback plan.</summary>
-public sealed class LocalHttpTransport : IDisposable
+public sealed class LocalHttpTransport : IDisposable, ILocalRunTransport
 {
     private readonly LoadTestPlan _plan;
     private readonly HttpClient _client;
