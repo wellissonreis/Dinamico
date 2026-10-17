@@ -1,6 +1,6 @@
 # FICHA-010 — Logs estruturados e amostras limitadas
 
-Prioridade: P0. Complexidade: P. Marco: M1. Status: proposta de integração futura; não implementada.
+Prioridade: P0. Complexidade: P. Marco: M1. Status: implementada e validada localmente em 2026-10-17; calibração/aceite M1 continuam na 012.
 
 ## Objetivo
 
@@ -30,7 +30,7 @@ FICHA-009.
 
 Logs com timestamp, level, event, execution_id, versão e reason_code. Amostra ≤512 bytes, até 5/janela e 100/execução local. Eventos repetidos até um por fingerprint/30 s, com contagem de suprimidos; linha ≤4 KiB. Métricas completas continuam contabilizadas mesmo sem amostra.
 
-## Integração futura — Rate Limiting v2
+## Registro histórico da proposta — Rate Limiting v2
 
 Logs/amostras permanecem pendentes. Aplicar o [contrato local v2](../03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12); evidências dos contratos/parser serão registradas pelo coordenador em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md).
 
@@ -68,6 +68,14 @@ Amostragem não permite reconstruir cada requisição. Mensagens de bibliotecas 
 
 ## Definição de pronto
 
-- [ ] Limites de amostra/log comprovados.
-- [ ] Testes de redaction e backpressure aprovados.
-- [ ] Logs são separados do JSON de resultado da CLI.
+- [x] Limites de amostra/log comprovados.
+- [x] Testes de redaction e backpressure aprovados.
+- [x] Logs são separados do JSON de resultado da CLI.
+
+## Entrega atual — 2026-10-17
+
+`Observability/BoundedRunObservability.cs` consome somente modo, janelas imutáveis e resultado seguro; não recebe configuração, URL, headers, payload ou exceptions. A CLI chama Start, ObserveWindow no ACK da saída e Finish. Transições do controlador são publicadas no encerramento; não há callback de logging no hot path. Resumo operacional a cada janela, inclusive final parcial, com CPU acumulada, RSS e heap; medições não disponíveis ficam nulas. Alocações, pausas GC, sockets/handler e throttling não foram instrumentados.
+
+Pump independente com fila de 32 linhas; produtores não aguardam stderr. Encerramento da CLI espera até 1 s; timeout/falha ficam no snapshot do relatório. Linhas <=4 KiB e amostras <=512 bytes por construção/teste; até 5 por janela/100 por execução. Fingerprint categoria/status tem intervalo de 30 s e contador de suprimidos. Categorias terminais precedem HTTP, preservando categoria rara sob tempestade 429/503. Acima do orçamento, os descartes são explícitos. Erros de transporte são uma categoria agregada (não há exemplos com fase DNS/TLS). Amostras ficam em stderr; relatório contém estatísticas da observabilidade. Métricas não são reduzidas por amostragem.
+
+Evidência: `BoundedObservabilityTests` verifica três modos, 125 janelas com 600 respostas HTTP e uma falha rara/janela, limites, deduplicação, writer bloqueado ignorando token e exception com canário. `CliProcessTests` injeta canários em bearer/API key/header personalizado/path/query/payload/Retry-After inválido e verifica stderr/relatório, incluindo JSON de erro. Rodada integrada e artefatos detalhados na [012](FICHA-012-ENGINE-VALIDATION.md). Não é ensaio prolongado de capacidade.

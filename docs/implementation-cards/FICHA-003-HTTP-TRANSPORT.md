@@ -85,3 +85,7 @@ Testes reais com FICHA-002 verificam reuso da conexão, payload POST, 429 com Re
 ## Continuação 009 — 2026-10-17
 
 Ciclo local agora possui o pool por execução, registra início/headers/terminal e dispõe o transporte após observar todas as operações. Testes HTTP reais com fixture (agenda simulada) cobrem 202/429/503 no ciclo; cancelamento/drain e adaptação não cooperativa têm vetores específicos em [009](FICHA-009-LOCAL-LIFECYCLE.md). Interface interna ILocalRunTransport é fronteira de teste, sem configuração pública para substituir políticas de rede. Permanecem vetores restantes de transporte e gate 012; CLI ainda informativa.
+
+## Continuação 010–012 — 2026-10-17
+
+CLI funcional e relatório agora exercitam o transporte em subprocesso contra a fixture: 202/429/503 nos três modos, canários, corpo limitado 200/429, deadline após headers 429 e Retry-After duplicado, cancelamento POSIX e conciliação de contagens. Status permanece separado de terminal e 503 não vira rate limiting. Não encerra esta ficha: continuam pendentes os vetores remanescentes/recursos e gate de calibração completo da [012](FICHA-012-ENGINE-VALIDATION.md). Os trechos anteriores que dizem não haver host são históricos.

@@ -1,6 +1,8 @@
 # Entrega de Rate Limiting — 2026-10-12
 
-## Estágio e escopo
+Estado atual (2026-10-17): observabilidade 010 e CLI/relatório 011 implementados; calibração/gate 012 e transporte remanescente pendentes. M1/037 continuam parciais. Ver [012](implementation-cards/FICHA-012-ENGINE-VALIDATION.md) e [README atual](../README.md). O corpo desta entrega e suas continuações datadas são registros históricos; afirmações sobre host informativo ou Git inexistente descrevem aquelas datas.
+
+## Estágio e escopo original
 
 Inspeção de README, documentos 01–08, REVIEW, ADRs 001–010, índice/fichas 001–012/037, projetos, código e testes: somente FICHA-001 implementada. Host local informativo; não existem transporte, fixture, scheduler, agregador, CLI funcional, banco, Control Plane, Kubernetes ou React. Não foi encontrado AGENTS.md aplicável. `git status` não reconhece o diretório reservado `.git`; não há baseline Git/commit/PR nesta entrega. Foi preservada cópia anterior em `/tmp/dinamico-before-rate.tgz` para revisão por comparação de arquivos.
 

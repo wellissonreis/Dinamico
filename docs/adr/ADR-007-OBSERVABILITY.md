@@ -1,6 +1,6 @@
 # ADR-007 — Observabilidade sem logs por requisição
 
-Status: Proposto. Data: 2026-10-08.
+Status: política local implementada nas 010/011 (2026-10-17); persistência distribuída futura. Registro original: Proposto, 2026-10-08.
 
 ## Contexto
 
@@ -33,3 +33,7 @@ Não será possível reconstituir cada chamada; stdout tem retenção operaciona
 ## Condições para revisar a decisão
 
 Incidentes demonstram falta de evidência ou operação exige consultas de logs multiambiente. Acrescentar coleta/exportação mantendo limites e sem tornar payloads parte do logging.
+
+## Implementação local — 2026-10-17
+
+`BoundedRunObservability` aplica allowlist, resumos por janela, amostras categoria/status, limites 5/100/512 bytes, linha <=4 KiB e supressão de 30 s. Fila 32 e pump independente evitam bloquear geração por stderr lento. Transições latched são publicadas no encerramento. CLI separa stderr do relatório JSON e publica perdas/falhas de observabilidade. Sem banco/eventos duráveis nesta etapa; detalhes e evidências nas [010](../implementation-cards/FICHA-010-BOUNDED-OBSERVABILITY.md) e [011](../implementation-cards/FICHA-011-CLI-REPORT.md). Não encerra calibração M1.

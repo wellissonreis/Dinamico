@@ -1,6 +1,6 @@
 # ADR-005 — Agregação limitada e histograma logarítmico fixo
 
-Status atual: histograma implementado na FICHA-007 (2026-10-17); janelas/lock implementados na 008; integração ao ciclo local implementada na 009; observabilidade/relatório/gate pendentes. Registro original: Proposto, 2026-10-08.
+Status atual: histograma implementado na FICHA-007 (2026-10-17); janelas/lock implementados na 008; integração ao ciclo local implementada na 009; observabilidade 010 e relatório 011 implementados; gate de calibração 012 pendente. Registro original: Proposto, 2026-10-08.
 
 ## Contexto
 

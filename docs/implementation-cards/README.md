@@ -1,10 +1,12 @@
 # Índice de fichas
 
-Estado atual (2026-10-17): contratos/validação v2, fixture 002, transporte 003 parcial, deadline 004, agenda 005, admissão limitada 006, histograma/codec 007, contadores/janelas 008 e ciclo local 009 implementados. FICHA-037 permanece **M1 parcial**: observabilidade 010, CLI/relatório 011 e gate 012 pendentes. Control Plane e UI pertencem a marcos posteriores. Evidências em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md).
+Estado atual (2026-10-17): contratos/validação v2, fixture 002, transporte 003 parcial, deadline 004, agenda 005, admissão limitada 006, histograma/codec 007, contadores/janelas 008 e ciclo local 009, observabilidade 010 e CLI/relatório 011 implementados. FICHA-037 permanece **M1 parcial**: gate de calibração 012 e vetores restantes de transporte pendentes. Control Plane e UI pertencem a marcos posteriores. Evidências em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md).
 
 Registro histórico de 2026-10-09: FICHA-001 autorizada, implementada e verificada; demais fichas permanecem pendentes. Evidências na própria ficha e instruções de execução no [README do projeto](../../README.md).
 
-Contrato normativo: seção final [Rate Limiting — contrato local v2](../03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12). Evidências do recorte estão em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md). Validação atual (2026-10-17): 515 testes aprovados, incluindo 19 novos do ciclo/corridas e regressão do sink; 97 direcionados; build Release sem avisos/erros. TRX em `TestResults/Ficha009/ValidatedSuite/`. Os 496 da 008, 472 da 007, 365 da fixture 002, 455 de 13/10 e 119 da base são evidências históricas.
+Contrato normativo: seção final [Rate Limiting — contrato local v2](../03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12). Evidências do recorte estão em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md). Validação histórica da 009 (2026-10-17): 515 testes aprovados, incluindo 19 novos do ciclo/corridas e regressão do sink; 97 direcionados; build Release sem avisos/erros. TRX em `TestResults/Ficha009/ValidatedSuite/`. Os 496 da 008, 472 da 007, 365 da fixture 002, 455 de 13/10 e 119 da base são evidências históricas.
+
+Validação desta entrega: 541 testes aprovados, 25 direcionados (HTTP 500 adicional coberto na suíte final), build Release sem avisos/erros; ver [012](FICHA-012-ENGINE-VALIDATION.md), com subprocessos, sinais POSIX, redaction e ensaios reais. Não há aceite M1.
 
 RetryAfterKind default é NotObserved (captura não realizada); Missing exige captura efetiva sem campo em 429, e NotApplicable corresponde a outro status. Não inferir ausência pelo default. HTTP com credenciais sintéticas em loopback é permitido conforme [07](../07-SECURITY.md); o validador não verifica a origem da credencial nem distingue segredos reais de sintéticos. Usar somente segredos sintéticos nesses testes.
 
@@ -64,4 +66,4 @@ Desenvolver controles de segurança cedo não autoriza exposição pública ante
 |---|---|---|---|
 | 037 | [Identificação e diagnóstico de Rate Limiting](FICHA-037-RATE-LIMITING.md) | P0 / G no conjunto | M1–M6, conforme etapas da ficha; não depende da 036 |
 
-A ficha 037 tem contratos locais v2, fixture, transporte parcial, deadline, scheduler, admissão, histograma/codec, acumulador/janelas e ciclo local implementados; logs, CLI/relatório e gate 012 seguem pendentes. NAT/egress são requisitos somente de M4/M5; a conclusão integral depende de M6.
+A ficha 037 tem contratos locais v2, fixture, transporte parcial, deadline, scheduler, admissão, histograma/codec, acumulador/janelas e ciclo local implementados; logs e CLI/relatório foram integrados nas 010/011; gate 012 segue pendente. NAT/egress são requisitos somente de M4/M5; a conclusão integral depende de M6.

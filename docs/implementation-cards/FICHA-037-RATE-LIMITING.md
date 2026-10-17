@@ -1,6 +1,6 @@
 # FICHA-037 — Identificação e diagnóstico de Rate Limiting
 
-Prioridade: P0 para diagnóstico confiável. Complexidade: G no conjunto; entregas por marco. Marcos: M1–M6. Status: **M1 parcial**; contratos/validação v2, fixture 002, transporte 003 parcial, deadline 004, agenda 005, admissão 006, histograma/codec 007, acumulador/janelas 008 e ciclo local 009 implementados. Observabilidade 010, CLI/relatório 011, gate 012 e marcos seguintes pendentes. Data: 2026-10-17.
+Prioridade: P0 para diagnóstico confiável. Complexidade: G no conjunto; entregas por marco. Marcos: M1–M6. Status: **M1 parcial**; contratos/validação v2, fixture 002, transporte 003 parcial, deadline 004, agenda 005, admissão 006, histograma/codec 007, acumulador/janelas 008 e ciclo local 009 implementados. Observabilidade 010 e CLI/relatório 011 implementados; gate 012, vetores restantes do transporte e marcos seguintes pendentes. Data: 2026-10-17.
 
 ## Objetivo
 
@@ -40,7 +40,7 @@ Bypass por header arbitrário, alteração da infraestrutura do cliente, rotaç�
 
 | Etapa | Fichas relacionadas | Entrega quando os componentes existirem |
 |---|---|---|
-| M1 — motor local | 001–012 | Entregues contratos/validação/parser puro, fixture 002, deadline 004, agenda 005, admissão 006, histograma/codec 007, acumulador/janelas 008 e ciclo local 009; transporte 003 parcial. Pendentes: observabilidade, relatório CLI e gate 012; somente loopback |
+| M1 — motor local | 001–012 | Entregues contratos/validação/parser puro, fixture 002, deadline 004, agenda 005, admissão 006, histograma/codec 007, acumulador/janelas 008 e ciclo local 009; transporte 003 parcial. Observabilidade 010 e relatório CLI 011 entregues; pendentes transporte remanescente/calibração 012; somente loopback |
 | M2 — persistência | 013–015 | Versionamento de janelas, ingestão idempotente e consulta dos indicadores |
 | M3 — controle protegido | 018–022 | Referências de credenciais, revisão imutável, autorização e contratos REST |
 | M4/M5 — distribuição | 023–028 | IPs de saída conhecidos, evidência de NAT, consolidação e falhas parciais |
@@ -62,7 +62,7 @@ Em M3, aplicar o cofre lógico já previsto em 07: cifrar valores persistidos, e
 
 No recorte local, manter loopback, validação pura e compatibilidade explícita de schema; não criar cofre. Conforme [07](../07-SECURITY.md), HTTP com credenciais sintéticas em loopback é permitido no laboratório. Usar somente segredos sintéticos nesses testes; o validador não distingue segredos reais de sintéticos. HTTPS permanece obrigatório para o SaaS remoto.
 
-### Contadores e denominadores — 008/009 implementadas; relatório futuro (011)
+### Contadores e denominadores — 008–011 implementadas
 
 | Indicador | Definição |
 |---|---|
@@ -167,7 +167,7 @@ Registro da continuação 007 em 2026-10-17: deadline 004, agenda 005 e admissã
 
 Registro da continuação 008 (2026-10-17): callback de headers separado do terminal, contadores/janelas imutáveis, sink limitado e codec/consolidação local implementados. **24 casos novos, 87 direcionados e 496 na suíte completa**, build Release sem avisos/erros. Evidências e limitações na [FICHA-008](FICHA-008-METRIC-WINDOWS.md). A 009 ainda deve integrar geração/drain/flush; M1 e FICHA-037 seguem incompletos.
 
-Continuação atual 009 (2026-10-17): ciclo local integrado, cancelamento/drain, retenção até ACK e flush limitado, razão/qualidade/completude independentes. **19 casos novos, 97 direcionados, 515 na suíte completa**, build Release sem avisos/erros. Dois cenários de corrida repetidos dez vezes: 20/20 aprovados. Evidências na [FICHA-009](FICHA-009-LOCAL-LIFECYCLE.md). 010–012 e M1 integrado permanecem pendentes; a FICHA-037 segue M1 parcial.
+Continuação histórica 009 (2026-10-17): ciclo local integrado, cancelamento/drain, retenção até ACK e flush limitado, razão/qualidade/completude independentes. **19 casos novos, 97 direcionados, 515 na suíte completa**, build Release sem avisos/erros. Dois cenários de corrida repetidos dez vezes: 20/20 aprovados. Evidências na [FICHA-009](FICHA-009-LOCAL-LIFECYCLE.md). 010–012 e M1 integrado permanecem pendentes; a FICHA-037 segue M1 parcial.
 
 ## Critérios de aceite
 
@@ -194,3 +194,7 @@ Não é possível localizar o componente limitador apenas pelo status; política
 Entregue somente planejamento: esta ficha e sua entrada no índice. Nenhum código executável, ADR vigente ou schema persistido foi alterado. Revisão estática contra README, fichas e contratos existentes; testes automatizados não executados porque não houve alteração funcional. Os 119 testes citados na FICHA-001 são evidência histórica, não resultado desta tarefa.
 
 Próximo passo histórico: revisar a proposta e incorporar o recorte local às fichas de M1. Atualização atual: recorte autorizado e integrado à documentação; contratos/parser implementados e verificados, demais entregas mantidas nos respectivos marcos. O diretório não é reconhecido como repositório Git neste ambiente; não foi possível obter diff/status por Git.
+
+## Continuação atual 010–012 — 2026-10-17
+
+Observabilidade limitada e relatório CLI foram integrados, com testes reais em subprocesso para os três modos, 202/429/503, headers separados de terminal, corpo limitado/timeout, canários, sinais e falhas de saída. Guia atual no [README](../../README.md), evidências e resultados na [012](FICHA-012-ENGINE-VALIDATION.md). Os registros anteriores do host informativo/011 futura são históricos. **M1/037 permanecem parciais**: os ensaios locais revelam drops por atraso e não fecham o gate sem saturação; faltam calibração com repetições, recursos prolongados, transporte remanescente e marcos posteriores. Não foi alterado nenhum critério de aceite para acomodar os resultados.

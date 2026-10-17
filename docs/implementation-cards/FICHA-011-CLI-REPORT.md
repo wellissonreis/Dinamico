@@ -1,6 +1,6 @@
 # FICHA-011 — CLI local e relatório de resultados
 
-Prioridade: P0. Complexidade: M. Marco: M1. Status: proposta de integração futura; não implementada.
+Prioridade: P0. Complexidade: M. Marco: M1. Status: implementada e validada localmente em 2026-10-17; gate de calibração 012 pendente.
 
 ## Objetivo
 
@@ -30,7 +30,7 @@ FICHAS 009 e 010.
 
 Entrada: arquivo/configuração local com um endpoint loopback e opções públicas; evitar secrets em argumentos. Saída: schema versionado com plano sanitizado, tempos, contadores, histogramas/quantis, status, flags, cobertura e metadados do ambiente. Logs em stderr e resultado em saída dedicada; overwrite de arquivo exige opção explícita. Exit codes propostos: 0 protocolo completo (inclusive HTTP errors), 2 configuração, 3 falha interna/dados parciais, 130 cancelamento.
 
-## Integração futura — Rate Limiting v2
+## Registro histórico da proposta — Rate Limiting v2
 
 CLI/relatório permanecem pendentes; host informativo não executa carga. Seguir o [contrato local v2](../03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12); evidências do recorte puro estão em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md).
 
@@ -70,6 +70,24 @@ Saída lenta pode interromper teste pela política de backpressure. Snapshot san
 
 ## Definição de pronto
 
-- [ ] Fluxo CLI→fixture→relatório verificado.
-- [ ] Exit codes, sinais, I/O de arquivo e redaction testados.
-- [ ] Guia de execução não exige Kubernetes ou banco.
+- [x] Fluxo CLI→fixture→relatório verificado.
+- [x] Exit codes, sinais, I/O de arquivo e redaction testados.
+- [x] Guia de execução não exige Kubernetes ou banco.
+
+## Entrega atual — 2026-10-17
+
+`LocalCli` e `JsonReportOutput` substituem o host informativo. Uso real, na raiz após build Release:
+
+```sh
+dotnet src/Dinamico.LoadEngine.Local/bin/Release/net10.0/Dinamico.LoadEngine.Local.dll run --config examples/local-http.json --output report.json 2>run.jsonl
+```
+
+Configuração segura e interpretação completa estão no [README](../../README.md). Envelope obrigatório schemaVersion 2, enums string, campos desconhecidos/duplicados rejeitados (inclusive headers); arquivo <=2 MiB. Continua limitado a literal loopback, sem bypass TLS, retries ou destinos externos. Authorized/Normal/Diagnostic preservam a agenda.
+
+Relatório schema 1 publica projeção allowlist (sem URL/header/payload), ambiente, tempos, janelas incrementais, totais do prefixo confirmado, status nos headers separados dos terminais, Retry-After normalizado e cobertura/flush. Dois histogramas com N/unidades/buckets/quantis aproximados e overflow explícito; null para populações vazias. Taxas derivadas têm denominadores nomeados e escopo observado. Não infere sucesso de negócio, ausência de limites ou capacidade do alvo.
+
+Arquivo dedicado é temporário `.incomplete-<id>` e rename final; overwrite somente explícito. Arquivo de configuração não pode ser o destino. Em falha/crash, temporário/prefixo não comprova resultado completo. Flush não é promessa de fsync nem atomicidade em todo filesystem. Criação/finalização possuem deadlines; escrita do stdout usa handle direto porque ConsoleStream oculta EPIPE. Teste identificou retorno 0 com pipe fechado e a correção foi revalidada com código 3. Saída bloqueada é testada com pipe Linux reduzido a 4 KiB; o host não aguarda I/O não cooperativo indefinidamente nem disputa dispose com writer ativo.
+
+Ctrl+C e SIGTERM Linux param a geração e cancelam I/O; cancelamento com relatório publicado retorna 130. Código 0 significa dados completos/protocolo concluído, inclusive HTTP 500/drops/timeout de request; 2 = configuração/conflito de saída; 3 = falha interna, saída ou dados parciais. Erros usam JSON enum-safe limitado em stderr; nenhuma mensagem de exception é publicada.
+
+Evidência em `CliProcessTests`: subprocesso/fixture real 202/429/503 nos três modos; corpo limitado 200/429; timeout após headers 429 com Retry-After duplicado; canários; conciliação de recebimentos/inícios/terminais; concorrência limitada; null; SIGINT/SIGTERM; arquivo existente/overwrite; configuração rejeitada; diretório ausente; pipe fechado/bloqueado; erros de configuração com 128 headers inválidos e linha limitada. Os testes CLI executam sem paralelismo com outras classes para não usar competição de CPU da suíte como condição dos vetores funcionais. Overflow matemático tem vetores na 007; não foi provocado por espera real >67 s na CLI. Validação consolidada na [012](FICHA-012-ENGINE-VALIDATION.md).
