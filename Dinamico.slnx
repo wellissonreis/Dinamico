@@ -2,8 +2,10 @@
   <Folder Name="/src/">
     <Project Path="src/Dinamico.LoadEngine/Dinamico.LoadEngine.csproj" />
     <Project Path="src/Dinamico.LoadEngine.Local/Dinamico.LoadEngine.Local.csproj" />
+    <Project Path="src/Dinamico.Persistence/Dinamico.Persistence.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Dinamico.LoadEngine.Tests/Dinamico.LoadEngine.Tests.csproj" />
+    <Project Path="tests/Dinamico.Persistence.Tests/Dinamico.Persistence.Tests.csproj" />
   </Folder>
 </Solution>
