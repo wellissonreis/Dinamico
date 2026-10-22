@@ -1,5 +1,7 @@
 # 04 — Arquitetura de dados
 
+Estado M2 (2026-10-22): implementado o recorte local de resultados em [Dinamico.Persistence](../src/Dinamico.Persistence/PostgresRunStore.cs), com schema `dinamico_m2`, revisão pública tipada, janelas e resumo binários, importação selada/idempotente e retenção 7/30/90 dias. [Guia operacional](M2-LOCAL-PERSISTENCE.md). Catálogo, Identity, grants, coordenação e ingestão de workers descritos abaixo permanecem arquitetura dos marcos seguintes. O projeto lógico local não implementa autorização multiusuário.
+
 ## Modelo e propriedade
 
 PostgreSQL armazena catálogo, coordenação e séries agregadas. Não será usado como fila de cada requisição de carga. UUIDs gerados na aplicação identificam recursos; `timestamptz` representa instantes civis, durações/contadores usam inteiros de 64 bits. Como `bigint` é assinado, contratos e ingestão limitam contadores/somas a 0..Int64.MaxValue, mesmo quando o array binário usa UInt64; ultrapassar é erro explícito. Campos enum são validados e versionados; snapshots públicos pequenos podem ser JSONB com schema validado, mas configuração sensível fica cifrada conforme 07 e histogramas ficam em `bytea` versionado, sem 834 objetos JSON por distribuição.
@@ -111,6 +113,6 @@ Testar concorrência de ingestão e perda de ACK, conflito de hash, lacunas, jan
 
 ## Integração prevista de Rate Limiting — M2/M5
 
-Ainda sem implementação de banco ou ingestão. Preservar no snapshot público somente modo, política sem retry e regra de aceitação versionada; referências de credenciais pertencem à configuração protegida de M3. O índice de header do contrato local não substitui uma credential_version persistida.
+M2 persiste indicadores do stream local com importação transacional e idempotente. O snapshot público preserva modo, política sem retry e regra de aceitação versionada; referências de credenciais pertencem à configuração protegida de M3. O índice de header do contrato local não substitui uma credential_version persistida. Ingestão autenticada por tentativa/worker e consolidação distribuída permanecem futuras.
 
 Janelas futuras carregarão contagens finitas de Retry-After conforme [03](03-LOAD-ENGINE-DESIGN.md), mínimos/máximos normalizados e cobertura de captura. Versionar o envelope antes da primeira persistência; rejeitar schemas incompatíveis. Aplicar deduplicação e merge no mesmo commit também a esses campos. Somar numeradores/denominadores antes de derivar proporção de 429 e somar buckets compatíveis antes dos quantis. Ausência de janela continua desconhecida; uma tentativa perdida não é zero nem será extrapolada. Não armazenar valores brutos de Retry-After, headers de autenticação ou observações por request. Revalidar orçamento de tamanho físico na ficha 013; os 20 KiB acima continuam hipótese.

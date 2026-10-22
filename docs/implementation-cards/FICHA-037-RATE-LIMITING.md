@@ -1,6 +1,6 @@
 # FICHA-037 — Identificação e diagnóstico de Rate Limiting
 
-Prioridade: P0 para diagnóstico confiável. Complexidade: G no conjunto; entregas por marco. Marcos: M1–M6. Status: **M1 parcial**; contratos/validação v2, fixture 002, transporte 003 parcial, deadline 004, agenda 005, admissão 006, histograma/codec 007, acumulador/janelas 008 e ciclo local 009 implementados. Observabilidade 010 e CLI/relatório 011 implementados; gate 012, vetores restantes do transporte e marcos seguintes pendentes. Data: 2026-10-17.
+Prioridade: P0 para diagnóstico confiável. Complexidade: G no conjunto; entregas por marco. Marcos: M1–M6. Status: **etapas M1 e M2 concluídas no escopo local**, incluindo persistência dos indicadores sem dupla soma e consulta. Controle protegido, distribuição e UI de M3–M6 permanecem pendentes. Envelope HTTP condicionado ao host na 012; evidências de persistência nas 013–015. Data: 2026-10-22.
 
 ## Objetivo
 
@@ -40,8 +40,8 @@ Bypass por header arbitrário, alteração da infraestrutura do cliente, rotaç�
 
 | Etapa | Fichas relacionadas | Entrega quando os componentes existirem |
 |---|---|---|
-| M1 — motor local | 001–012 | Entregues contratos/validação/parser puro, fixture 002, deadline 004, agenda 005, admissão 006, histograma/codec 007, acumulador/janelas 008 e ciclo local 009; transporte 003 parcial. Observabilidade 010 e relatório CLI 011 entregues; pendentes transporte remanescente/calibração 012; somente loopback |
-| M2 — persistência | 013–015 | Versionamento de janelas, ingestão idempotente e consulta dos indicadores |
+| M1 — motor local | 001–012 | Concluído no escopo HTTP/1.1 loopback; observabilidade, CLI e calibração aceitas na 012 |
+| M2 — persistência | 013–015 | Concluído para importação local: janelas versionadas, transação idempotente, resumo/consulta e retenção dos indicadores |
 | M3 — controle protegido | 018–022 | Referências de credenciais, revisão imutável, autorização e contratos REST |
 | M4/M5 — distribuição | 023–028 | IPs de saída conhecidos, evidência de NAT, consolidação e falhas parciais |
 | M6 — interface | 029–032 | Configuração React, SSE e relatório final |

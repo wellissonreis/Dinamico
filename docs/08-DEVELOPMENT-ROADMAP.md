@@ -1,5 +1,7 @@
 # 08 — Roadmap de desenvolvimento
 
+Atualização de 2026-10-22: **M2 entregue para resultados locais de um stream** — PostgreSQL, snapshot imutável, importação atômica/idempotente, consulta e retenção. Fichas [013](implementation-cards/FICHA-013-POSTGRESQL.md), [014](implementation-cards/FICHA-014-IDEMPOTENT-IMPORT.md) e [015](implementation-cards/FICHA-015-RESULT-QUERIES.md); uso em [M2 local](M2-LOCAL-PERSISTENCE.md). Próxima etapa é detalhar 016, sem antecipar execução remota ou distribuída.
+
 ## Estado atual e escopo autorizado (2026-10-12)
 
 Estado atual (2026-10-12): contratos/validação v2 e parser Retry-After implementados (001/037). A continuação adiciona a fixture HTTP loopback da FICHA-002 e seus testes. FICHA-037 permanece **M1 parcial**: transporte do motor, scheduler, agregação, relatório, Control Plane e UI pendentes. Evidências e limites em [RATE-LIMITING-DELIVERY](RATE-LIMITING-DELIVERY.md).

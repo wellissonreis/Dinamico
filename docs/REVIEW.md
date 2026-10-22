@@ -1,5 +1,9 @@
 # Revisão arquitetural e pauta de decisão
 
+Estado vigente (2026-10-22): M1 local aceito; M2 de persistência local concluído e validado. PostgreSQL, importação idempotente, snapshots imutáveis, consultas e retenção disponíveis. Evidências nas fichas [013](implementation-cards/FICHA-013-POSTGRESQL.md), [014](implementation-cards/FICHA-014-IDEMPOTENT-IMPORT.md), [015](implementation-cards/FICHA-015-RESULT-QUERIES.md) e no [guia M2](M2-LOCAL-PERSISTENCE.md). Próximo detalhamento: 016/M3. A revisão de 17/10 e a pauta abaixo são históricas; não representam o inventário atual.
+
+## Registro histórico — 2026-10-17
+
 Estado atual (2026-10-17): contratos/validação v2, fixture 002, transporte 003 parcial, deadline 004, agenda 005, admissão limitada 006, histograma/codec 007, contadores/janelas 008 e ciclo local 009 implementados. FICHA-037 permanece **M1 parcial**: observabilidade 010, CLI/relatório 011 e gate 012 pendentes. Control Plane e UI pertencem a marcos posteriores. Evidências em [RATE-LIMITING-DELIVERY](RATE-LIMITING-DELIVERY.md).
 
 A seção final de [03 — contrato local v2](03-LOAD-ENGINE-DESIGN.md#rate-limiting--contrato-local-v2-2026-10-12) prevalece sobre as propostas antigas: SchemaVersion 2, retry None, modos Normal/Authorized/Diagnostic e `HttpSuccessRule.Completed2xxV1`. Authorized exige TestCredentialHeaderIndex e TestAuthorizationDeclared; os demais modos também aceitam credenciais. É declaração local, não grant. Evidências registradas em [RATE-LIMITING-DELIVERY](RATE-LIMITING-DELIVERY.md).

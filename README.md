@@ -1,5 +1,7 @@
 # Dinamico — Load Engine
 
+**M2 entregue em 2026-10-22:** PostgreSQL, importação idempotente, consultas e retenção local. Instruções e limites em [Persistência local — M2](docs/M2-LOCAL-PERSISTENCE.md). O estado M1 e suas medições abaixo descrevem o motor HTTP; M3–M7 continuam futuros.
+
 CLI local para carga HTTP/1.1 constante, com agenda open-loop e relatório JSON. Somente HTTP(S) com **IP loopback literal**, como `127.0.0.1` ou `[::1]`; `localhost`, DNS e destinos externos são recusados. Sem retries, redirects, proxy de ambiente, cookies ou descompressão automática. TLS conserva a validação de certificado.
 
 Estado atual: componentes 001–009, observabilidade 010 e CLI/relatório 011 disponíveis; transporte 003 ainda parcial e gate de calibração 012 pendente. **M1 e FICHA-037 não estão concluídos.** Validação final: **541 testes aprovados**, 25 direcionados, build Release sem avisos/erros. As contagens de 515 testes da continuação 009 são históricas; detalhes e evidências em [FICHA-012](docs/implementation-cards/FICHA-012-ENGINE-VALIDATION.md).

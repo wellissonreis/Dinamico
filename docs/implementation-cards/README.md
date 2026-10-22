@@ -1,5 +1,7 @@
 # Índice de fichas
 
+Atualização de 2026-10-22: **M2 concluído no escopo de persistência local**. [013](FICHA-013-POSTGRESQL.md), [014](FICHA-014-IDEMPOTENT-IMPORT.md) e [015](FICHA-015-RESULT-QUERIES.md) entregam PostgreSQL, importação idempotente e consulta/retenção. [Guia e validação](../M2-LOCAL-PERSISTENCE.md). Próximo marco: M3, começando pelo detalhamento da 016. O inventário histórico de M1 abaixo permanece como evidência daquele marco.
+
 Estado atual (2026-10-17): contratos/validação v2, fixture 002, transporte 003 parcial, deadline 004, agenda 005, admissão limitada 006, histograma/codec 007, contadores/janelas 008 e ciclo local 009, observabilidade 010 e CLI/relatório 011 implementados. FICHA-037 permanece **M1 parcial**: gate de calibração 012 e vetores restantes de transporte pendentes. Control Plane e UI pertencem a marcos posteriores. Evidências em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md).
 
 Registro histórico de 2026-10-09: FICHA-001 autorizada, implementada e verificada; demais fichas permanecem pendentes. Evidências na própria ficha e instruções de execução no [README do projeto](../../README.md).
