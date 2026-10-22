@@ -89,6 +89,8 @@ internal sealed class JsonReportOutput : ILocalMetricOutput, IAsyncDisposable
     {
         writer.WriteStartObject();
         Write("index", window.WindowIndex);
+        // Lossless M2 import envelope: display fields omit registration timing metadata.
+        Write("encodedWindow", Convert.ToBase64String(MetricWindowCodec.Encode(window)));
         Write("startSeconds", window.Start.TotalSeconds);
         Write("endSeconds", window.End.TotalSeconds);
         Write("isFinal", window.IsFinal);

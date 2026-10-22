@@ -19,9 +19,11 @@ public static class LocalCli
 
     public static async Task<int> RunAsync(string[] args)
     {
+        if (args is ["storage", ..]) return await StorageCli.RunAsync(args[1..]);
         if (args is ["--help"] or ["-h"])
         {
             Console.Error.WriteLine("Usage: run --config FILE --output FILE|- [--overwrite]");
+            Console.Error.WriteLine(StorageCli.Usage);
             return 0;
         }
         if (!TryParse(args, out var configPath, out var outputPath, out bool overwrite))

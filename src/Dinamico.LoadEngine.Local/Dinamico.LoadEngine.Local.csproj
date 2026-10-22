@@ -4,5 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Dinamico.LoadEngine/Dinamico.LoadEngine.csproj" />
+    <ProjectReference Include="../Dinamico.Persistence/Dinamico.Persistence.csproj" />
   </ItemGroup>
 </Project>
