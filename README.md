@@ -1,6 +1,25 @@
 # Dinamico — Load Engine
 
-**M2 entregue em 2026-10-22:** PostgreSQL, importação idempotente, consultas e retenção local. Instruções e limites em [Persistência local — M2](docs/M2-LOCAL-PERSISTENCE.md). O estado M1 e suas medições abaixo descrevem o motor HTTP; M3–M7 continuam futuros.
+**Disponível:** motor HTTP local (M1), persistência PostgreSQL (M2) e painel React para execução, acompanhamento e histórico. O painel antecipa o recorte local do M6; autenticação, controle distribuído e perfil em degraus continuam pendentes. [Persistência M2](docs/M2-LOCAL-PERSISTENCE.md) · [Painel local](docs/WEB-LOCAL.md).
+
+## Usar o painel React
+
+No Linux/WSL, instale Node.js **22.12+**, npm, Docker Compose e o SDK .NET **10.0.204**. Na raiz do projeto:
+
+```sh
+./scripts/run-web.sh
+```
+
+O script inicia o PostgreSQL local, instala as dependências do React, compila o frontend e a API e inicia o painel em **http://127.0.0.1:5080**. A configuração padrão usa o banco local do Compose; para outra conexão, defina `DINAMICO_DATABASE_CONNECTION` antes de executar o script. Não é necessário iniciar a CLI separadamente.
+
+1. Inicie a aplicação que receberá a carga, por exemplo em `http://127.0.0.1:5000/`.
+2. Abra o painel e informe endpoint, taxa, duração e concorrência. Comece com **10 req/s**.
+3. Clique em **Iniciar teste**. As métricas chegam por janelas de até 5 segundos; **Interromper teste** cancela a geração e as operações ativas.
+4. Consulte o **Histórico** ou baixe a visão do resultado em JSON. Falhas ao salvar, dados parciais e descartes são indicados na tela.
+
+Use IP loopback literal (`127.0.0.1` ou `[::1]`). O painel fica restrito à máquina local e não possui login. Ctrl+C encerra o servidor; o PostgreSQL permanece ativo. Para parar somente o banco deste projeto: `docker compose -f compose.m2.yaml stop`.
+
+Para desenvolvimento com atualização automática do React e para comandos manuais no Windows, veja [WEB-LOCAL](docs/WEB-LOCAL.md).
 
 CLI local para carga HTTP/1.1 constante, com agenda open-loop e relatório JSON. Somente HTTP(S) com **IP loopback literal**, como `127.0.0.1` ou `[::1]`; `localhost`, DNS e destinos externos são recusados. Sem retries, redirects, proxy de ambiente, cookies ou descompressão automática. TLS conserva a validação de certificado.
 

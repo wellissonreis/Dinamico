@@ -1,5 +1,7 @@
 # 08 — Roadmap de desenvolvimento
 
+Antecipação autorizada em 2026-10-22: [painel React local](WEB-LOCAL.md), recorte das 029–032 com API loopback, execução/SSE/cancelamento e histórico M2. O aceite local está na [030](implementation-cards/FICHA-030-REACT-LOCAL.md); não encerra M6 completo nem as dependências de autenticação, segurança remota, distribuição e perfil em degraus.
+
 Atualização de 2026-10-22: **M2 entregue para resultados locais de um stream** — PostgreSQL, snapshot imutável, importação atômica/idempotente, consulta e retenção. Fichas [013](implementation-cards/FICHA-013-POSTGRESQL.md), [014](implementation-cards/FICHA-014-IDEMPOTENT-IMPORT.md) e [015](implementation-cards/FICHA-015-RESULT-QUERIES.md); uso em [M2 local](M2-LOCAL-PERSISTENCE.md). Próxima etapa é detalhar 016, sem antecipar execução remota ou distribuída.
 
 Estado vigente e medições de 2026-10-21: [README do projeto](../README.md), [índice de fichas](implementation-cards/README.md) e [gate 012](implementation-cards/FICHA-012-ENGINE-VALIDATION.md). Os registros datados de 2026-10-12 abaixo preservam o escopo histórico; não descrevem o inventário atual de código.

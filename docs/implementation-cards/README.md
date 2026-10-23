@@ -1,5 +1,7 @@
 # Índice de fichas
 
+Atualização de 2026-10-22: interface React local disponível no recorte antecipado das fichas 029–032, registrada na [030 — React local](FICHA-030-REACT-LOCAL.md). Editor, SSE, cancelamento e histórico conectados a M1/M2; [como usar](../WEB-LOCAL.md). M3–M5 e M6 completo permanecem pendentes, incluindo autenticação, distribuição e perfil em degraus.
+
 Atualização de 2026-10-22: **M2 concluído no escopo de persistência local**. [013](FICHA-013-POSTGRESQL.md), [014](FICHA-014-IDEMPOTENT-IMPORT.md) e [015](FICHA-015-RESULT-QUERIES.md) entregam PostgreSQL, importação idempotente e consulta/retenção. [Guia e validação](../M2-LOCAL-PERSISTENCE.md). Próximo marco: M3, começando pelo detalhamento da 016. O inventário histórico de M1 abaixo permanece como evidência daquele marco.
 
 Estado atual (2026-10-21): **M1 concluído no escopo HTTP/1.1 local loopback**, fichas 001–012 implementadas e validadas. Espera Windows de alta resolução, diagnóstico do scheduler, recursos GC/ThreadPool/HTTP agregados e calibração reproduzível disponíveis. Envelope demonstrado de 10 RPS no Windows, com limitações WSL registradas na [012](FICHA-012-ENGINE-VALIDATION.md). FICHA-037 conclui sua etapa M1; persistência, Control Plane, distribuição e UI permanecem futuros. Evidências em [RATE-LIMITING-DELIVERY](../RATE-LIMITING-DELIVERY.md).
