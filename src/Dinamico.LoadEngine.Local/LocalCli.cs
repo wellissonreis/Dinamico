@@ -139,6 +139,9 @@ public static class LocalCli
         finally
         {
             Console.CancelKeyPress -= cancel;
+            // Report creation/publication may fail before the normal completion path.
+            // Always stop the pump and release process-wide metric subscriptions.
+            await observability.CompleteAsync(TimeSpan.FromSeconds(1));
             if (output is not null)
             {
                 try { await output.DisposeAsync(); } catch (Exception) { }

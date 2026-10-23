@@ -25,6 +25,7 @@ public sealed class BoundedRunObservability
     private readonly Dictionary<string, (long Timestamp, long Suppressed)> fingerprints = new();
     private readonly CancellationTokenSource stop = new();
     private readonly Task pump;
+    private readonly HttpRuntimeMetrics httpMetrics;
     private long samples, discarded, suppressed, dropped;
     private bool outputFailed, completed, started;
     private ulong? lastWindow;
@@ -33,6 +34,7 @@ public sealed class BoundedRunObservability
     public BoundedRunObservability(TextWriter writer, Guid executionId, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(writer);
+        httpMetrics = new();
         this.executionId = executionId;
         time = timeProvider ?? TimeProvider.System;
         // Isolate even writers that block synchronously before returning their ValueTask.
@@ -89,21 +91,45 @@ public sealed class BoundedRunObservability
                 saturated = limited;
             }
             // Fixed frequency follows immutable five-second metric windows, never request completion frequency.
-            long? workingSet = null, cpuTicks = null, heap = null;
+            long? workingSet = null, cpuTicks = null, heap = null, allocated = null, gcHeap = null,
+                fragmented = null, gcPauseTicks = null, handles = null;
+            int? gen0 = null, gen1 = null, gen2 = null;
             try
             {
                 using var process = Process.GetCurrentProcess();
                 workingSet = process.WorkingSet64;
                 cpuTicks = process.TotalProcessorTime.Ticks;
-                heap = GC.GetTotalMemory(false);
+                // The approximate runtime sample can race a collection and be invalid.
+                // Unknown is preferable to publishing negative retained bytes or a fabricated zero.
+                long measuredHeap = GC.GetTotalMemory(false);
+                heap = measuredHeap >= 0 ? measuredHeap : null;
+                allocated = GC.GetTotalAllocatedBytes(precise: false);
+                var gc = GC.GetGCMemoryInfo();
+                gcHeap = gc.HeapSizeBytes;
+                fragmented = gc.FragmentedBytes;
+                gcPauseTicks = GC.GetTotalPauseDuration().Ticks;
+                gen0 = GC.CollectionCount(0);
+                gen1 = GC.CollectionCount(1);
+                gen2 = GC.CollectionCount(2);
+                handles = process.HandleCount;
             }
             catch (Exception) { /* Unsupported runtime measurements remain unknown. */ }
+            var http = httpMetrics.Snapshot;
             Emit("process.summary", "Information", "window_closed", new
             {
                 window_index = window.WindowIndex, elapsed_ticks = window.End.Ticks, in_flight = window.InFlight,
                 concurrency_limit = window[MetricCounter.ConcurrencyLimit], scheduler_late = window[MetricCounter.SchedulerLate],
                 request_timeouts = window[MetricCounter.RequestTimedOut], working_set_bytes = workingSet,
                 cpu_time_ticks = cpuTicks, managed_heap_bytes = heap,
+                gc_heap_size_bytes = gcHeap, gc_fragmented_bytes = fragmented,
+                gc_total_allocated_bytes = allocated, gc_total_pause_ticks = gcPauseTicks,
+                gc_collection_count_gen0 = gen0, gc_collection_count_gen1 = gen1, gc_collection_count_gen2 = gen2,
+                process_handle_count = handles, thread_pool_pending_work_items = ThreadPool.PendingWorkItemCount,
+                thread_pool_thread_count = ThreadPool.ThreadCount,
+                http_open_connections_current = http.OpenConnectionsCurrent, http_open_connections_peak = http.OpenConnectionsPeak,
+                http_active_requests_current = http.ActiveRequestsCurrent, http_active_requests_peak = http.ActiveRequestsPeak,
+                http_queue_count = http.QueueCount, http_queue_total_seconds = http.QueueTotalSeconds,
+                http_queue_max_seconds = http.QueueMaxSeconds,
                 events_suppressed = suppressed, samples_discarded = discarded, lines_dropped = dropped
             });
 
@@ -147,6 +173,7 @@ public sealed class BoundedRunObservability
         try { await pump.WaitAsync(timeout, cancellationToken).ConfigureAwait(false); return !Snapshot.OutputFailed; }
         catch (TimeoutException) { StopOutput(); return false; }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { StopOutput(); return false; }
+        finally { httpMetrics.Dispose(); }
     }
 
     private void StopOutput()

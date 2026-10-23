@@ -70,6 +70,11 @@ public sealed class BoundedObservabilityTests
                 }
             }
             Assert.All(documents, d => Assert.True(Encoding.UTF8.GetByteCount(d.RootElement.GetRawText()) <= 4096));
+            foreach (var summary in documents.Where(d => d.RootElement.GetProperty("event").GetString() == "process.summary"))
+            {
+                var heap = summary.RootElement.GetProperty("data").GetProperty("managed_heap_bytes");
+                Assert.True(heap.ValueKind == JsonValueKind.Null || heap.GetInt64() >= 0);
+            }
             Assert.All(samples, d => Assert.True(Encoding.UTF8.GetByteCount(d.RootElement.GetRawText()) <= 512));
         }
         finally { foreach (var document in documents) document.Dispose(); }
