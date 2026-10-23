@@ -220,7 +220,12 @@ public sealed class LocalRunController
                         plan.PlannedTotal, due, checked(plan.PlannedTotal - due), generationEnd.Value,
                         operationsEnd - generationEnd.Value, end - flushStart, end, admission.Snapshot,
                         resultTotals, manifest, quality, drained, coverage, flushConfirmed, outputStopped,
-                        ImmutableArray.CreateRange(transitions));
+                        ImmutableArray.CreateRange(transitions))
+                    {
+                        Scheduler = new(scheduler.WakeCount, scheduler.LimitedWakeCount,
+                            scheduler.ToleranceExceededDrops, scheduler.WakeCapacityDrops, scheduler.EndBoundaryDrops,
+                            scheduler.MaxObservedLateness, schedule.Quantum, schedule.LatenessTolerance)
+                    };
                 }
             }
             finally

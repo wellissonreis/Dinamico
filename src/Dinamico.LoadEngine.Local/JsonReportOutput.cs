@@ -5,6 +5,7 @@ using Dinamico.LoadEngine.Contracts;
 using Dinamico.LoadEngine.Lifecycle;
 using Dinamico.LoadEngine.Metrics;
 using Dinamico.LoadEngine.Observability;
+using Dinamico.LoadEngine.Scheduling;
 
 namespace Dinamico.LoadEngine.Local;
 
@@ -40,6 +41,7 @@ internal sealed class JsonReportOutput : ILocalMetricOutput, IAsyncDisposable
         var output = new JsonReportOutput(stream, destination, temporary, overwrite, observability);
         try
         {
+            var schedule = ArrivalSchedule.FromPlan(plan);
             output.writer.WriteStartObject();
             output.Write("schemaVersion", 1);
             output.Write("executionId", plan.ExecutionId);
@@ -71,7 +73,9 @@ internal sealed class JsonReportOutput : ILocalMetricOutput, IAsyncDisposable
                     redirects = false, proxy = false, cookies = false, automaticDecompression = false,
                     metricWindowSeconds = MetricWindow.Width.TotalSeconds,
                     metricSinkCapacity = MetricWindowSink.MaximumCapacity,
-                    flushTimeoutSeconds = LocalRunController.FlushTimeout.TotalSeconds
+                    flushTimeoutSeconds = LocalRunController.FlushTimeout.TotalSeconds,
+                    schedulerQuantumMilliseconds = schedule.Quantum.TotalMilliseconds,
+                    schedulerLatenessToleranceMilliseconds = schedule.LatenessTolerance.TotalMilliseconds
                 }
             });
             output.writer.WriteStartArray("windows");
@@ -122,6 +126,13 @@ internal sealed class JsonReportOutput : ILocalMetricOutput, IAsyncDisposable
         {
             result.Completion, result.Reason, result.Failures, result.DataComplete, result.Quality,
             result.PlannedTotal, result.ScheduledDue, result.NotScheduledAfterStop,
+            scheduler = result.Scheduler is { } s ? new
+            {
+                s.WakeCount, s.LimitedWakeCount, s.ToleranceExceededDrops, s.WakeCapacityDrops, s.EndBoundaryDrops,
+                maximumObservedLatenessMilliseconds = s.MaxObservedLateness.TotalMilliseconds,
+                quantumMilliseconds = s.Quantum.TotalMilliseconds,
+                latenessToleranceMilliseconds = s.LatenessTolerance.TotalMilliseconds
+            } : null,
             durationsSeconds = new { generation = result.GenerationDuration.TotalSeconds,
                 drain = result.DrainDuration.TotalSeconds, flush = result.FlushDuration.TotalSeconds,
                 total = result.TotalDuration.TotalSeconds },

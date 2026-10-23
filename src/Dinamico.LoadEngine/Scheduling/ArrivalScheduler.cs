@@ -32,6 +32,9 @@ public sealed class ArrivalScheduler
     public long SchedulerLate { get; private set; }
     public long WakeCount { get; private set; }
     public long LimitedWakeCount { get; private set; }
+    public long ToleranceExceededDrops { get; private set; }
+    public long WakeCapacityDrops { get; private set; }
+    public long EndBoundaryDrops { get; private set; }
     public TimeSpan MaxObservedLateness { get; private set; }
     public bool IsCompleted { get; private set; }
     /// <summary>Restante atribuído; uma parada externa pode reportá-lo como não agendado.</summary>
@@ -68,6 +71,13 @@ public sealed class ArrivalScheduler
         }
 
         long dropped = dueCount - offered;
+        if (completed)
+            EndBoundaryDrops = checked(EndBoundaryDrops + dropped);
+        else
+        {
+            ToleranceExceededDrops = checked(ToleranceExceededDrops + dropped - excess);
+            WakeCapacityDrops = checked(WakeCapacityDrops + excess);
+        }
         _nextOrdinal = dueEnd; // Não deixar excedentes para o próximo despertar.
         ScheduledDue = checked(ScheduledDue + dueCount);
         OfferedArrivals = checked(OfferedArrivals + offered);

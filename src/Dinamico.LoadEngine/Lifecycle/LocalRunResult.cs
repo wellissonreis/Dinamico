@@ -11,6 +11,9 @@ public enum LocalRunCompletion { Completed, Cancelled, Failed }
 [Flags]
 public enum LocalRunFailure { None = 0, TelemetryBackpressure = 1, Internal = 2, Output = 4, FlushTimeout = 8, DrainTimeout = 16 }
 public readonly record struct LocalRunTransition(LocalRunState State, TimeSpan Elapsed);
+public sealed record SchedulerDiagnostics(long WakeCount, long LimitedWakeCount,
+    long ToleranceExceededDrops, long WakeCapacityDrops, long EndBoundaryDrops,
+    TimeSpan MaxObservedLateness, TimeSpan Quantum, TimeSpan LatenessTolerance);
 
 /// <summary>Output owns no transport. Calls must honor cancellation; WriteAsync confirms one immutable window.</summary>
 public interface ILocalMetricOutput
@@ -43,4 +46,5 @@ public sealed record LocalRunResult(
     ImmutableArray<LocalRunTransition> Transitions)
 {
     public bool DataComplete => OperationsDrained && MetricsCoverageComplete && FlushConfirmed && OutputStopped;
+    public SchedulerDiagnostics? Scheduler { get; init; }
 }

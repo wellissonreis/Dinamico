@@ -55,6 +55,15 @@ public sealed class CliProcessTests
         Assert.Equal(due, started + counters.GetProperty("SchedulerLate").GetInt64() +
             counters.GetProperty("ConcurrencyLimit").GetInt64() + counters.GetProperty("Policy").GetInt64());
         Assert.Equal(result.GetProperty("plannedTotal").GetInt64(), due + result.GetProperty("notScheduledAfterStop").GetInt64());
+        var scheduler = result.GetProperty("scheduler");
+        Assert.Equal(1, scheduler.GetProperty("quantumMilliseconds").GetDouble());
+        Assert.Equal(5, scheduler.GetProperty("latenessToleranceMilliseconds").GetDouble());
+        Assert.Equal(5, json.RootElement.GetProperty("plan").GetProperty("limits")
+            .GetProperty("schedulerLatenessToleranceMilliseconds").GetDouble());
+        // A stop between polls may add SchedulerLate outside the scheduler's own wakes.
+        Assert.True(counters.GetProperty("SchedulerLate").GetInt64() >=
+            scheduler.GetProperty("toleranceExceededDrops").GetInt64() + scheduler.GetProperty("wakeCapacityDrops").GetInt64()
+            + scheduler.GetProperty("endBoundaryDrops").GetInt64());
         await PreserveEvidence($"{status}-{mode}", await File.ReadAllTextAsync(files.Output), run.Stderr);
     }
 

@@ -209,6 +209,25 @@ public sealed class ArrivalSchedulerTests
         Assert.Equal(1, scheduler.OfferedArrivals);
     }
 
+    [Fact]
+    public void Drop_diagnostics_partition_lateness_capacity_and_end_without_double_counting()
+    {
+        var clock = new FakeClock();
+        var scheduler = NewScheduler(new ArrivalSchedule(1_000, 1), clock);
+        clock.SetElapsed(TimeSpan.FromMilliseconds(10));
+        var first = scheduler.Poll(); // 5 outside tolerance, 5 acceptable, only 2 offered.
+        Assert.Equal(5, scheduler.ToleranceExceededDrops);
+        Assert.Equal(3, scheduler.WakeCapacityDrops);
+        Assert.Equal(8, first.SchedulerLate);
+        clock.SetElapsed(TimeSpan.FromSeconds(1));
+        scheduler.Poll();
+        Assert.Equal(990, scheduler.EndBoundaryDrops);
+        Assert.Equal(scheduler.SchedulerLate,
+            scheduler.ToleranceExceededDrops + scheduler.WakeCapacityDrops + scheduler.EndBoundaryDrops);
+        Assert.Equal(1_000, scheduler.ScheduledDue);
+        Assert.Equal(2, scheduler.OfferedArrivals);
+    }
+
     [Theory]
     [InlineData(1_000)]
     [InlineData(10_000)]
