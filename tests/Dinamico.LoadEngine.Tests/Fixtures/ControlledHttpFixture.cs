@@ -21,6 +21,7 @@ public sealed record HttpFixtureOptions
     public TimeSpan HeaderDelay { get; init; } = TimeSpan.Zero;
     public TimeSpan ChunkDelay { get; init; } = TimeSpan.Zero;
     public int BodyBytes { get; init; } = 16;
+    public int? AlternateBodyBytes { get; init; }
     public int ChunkBytes { get; init; } = 1024;
     public bool OmitContentLength { get; init; }
     public bool TruncateBody { get; init; }
@@ -239,9 +240,11 @@ public sealed class ControlledHttpFixture : IAsyncDisposable
                 return;
             }
 
+            int bodyBytes = (receipt & 1) == 0 && _options.AlternateBodyBytes is { } alternateBody
+                ? alternateBody : _options.BodyBytes;
             context.Response.ContentType = "application/octet-stream";
             if (!_options.OmitContentLength)
-                context.Response.ContentLength = _options.BodyBytes;
+                context.Response.ContentLength = bodyBytes;
             await context.Response.StartAsync(token).ConfigureAwait(false);
             await context.Response.Body.FlushAsync(token).ConfigureAwait(false);
             if (HttpMethods.IsHead(context.Request.Method))
@@ -251,7 +254,7 @@ public sealed class ControlledHttpFixture : IAsyncDisposable
 
             // The destination always finishes successfully, including in a truncation scenario.
             bool truncate = _options.TruncateBody && !destination;
-            int remaining = truncate ? _options.BodyBytes / 2 : _options.BodyBytes;
+            int remaining = truncate ? bodyBytes / 2 : bodyBytes;
             while (remaining > 0)
             {
                 await DelayAsync(_options.ChunkDelay, token).ConfigureAwait(false);
@@ -338,9 +341,10 @@ public sealed class ControlledHttpFixture : IAsyncDisposable
             snapshot.HeaderDelay < TimeSpan.Zero || snapshot.HeaderDelay > MaximumDelay ||
             snapshot.ChunkDelay < TimeSpan.Zero || snapshot.ChunkDelay > MaximumDelay ||
             snapshot.BodyBytes is < 0 or > 16 * 1024 * 1024 ||
+            snapshot.AlternateBodyBytes is < 0 or > 16 * 1024 * 1024 ||
             snapshot.ChunkBytes is < 1 or > 64 * 1024 ||
             snapshot.MaxConcurrentRequests is < 1 or > 1024 ||
-            snapshot.TruncateBody && snapshot.BodyBytes == 0 ||
+            snapshot.TruncateBody && (snapshot.BodyBytes == 0 || snapshot.AlternateBodyBytes == 0) ||
             snapshot.SyntheticCredential is { } credential && !IsSafeHeaderValue(credential, 1024))
         {
             throw InvalidOptions();
