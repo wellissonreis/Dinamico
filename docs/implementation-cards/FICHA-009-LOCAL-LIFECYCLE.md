@@ -1,6 +1,6 @@
 # FICHA-009 — Ciclo de vida e parada local
 
-Prioridade: P0. Complexidade: M. Marco: M1. Status: concluída e validada em 2026-10-17; CLI/observabilidade e gate permanecem nas 010–012.
+Prioridade: P0. Complexidade: M. Marco: M1. Status: concluída em 2026-10-17; CLI/observabilidade integradas e gate 012 validado em 2026-10-21.
 
 ## Objetivo
 

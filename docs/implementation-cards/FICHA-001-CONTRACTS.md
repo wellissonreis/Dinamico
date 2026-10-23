@@ -1,6 +1,6 @@
 # FICHA-001 — Contratos e limites do motor local
 
-Prioridade: P0. Complexidade: P. Marco: M1. Status: base implementada e verificada em 2026-10-09 (histórico); extensão v2 implementada e verificada em 2026-10-12; integração HTTP pendente.
+Prioridade: P0. Complexidade: P. Marco: M1. Status: base e extensão v2 implementadas; integração HTTP local validada no gate 012 de 2026-10-21. Registros anteriores são históricos.
 
 ## Objetivo
 

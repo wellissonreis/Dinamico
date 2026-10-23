@@ -182,8 +182,8 @@ Não é possível localizar o componente limitador apenas pelo status; política
 - [x] Contratos locais revisados e incorporados aos documentos canônicos; etapas futuras identificadas.
 - [x] M1 parcial: contratos/validação/parser puro v2 implementados e verificados (309 testes na suíte).
 - [x] Fixture HTTP local 002 e seus cenários verificados na continuação.
-- [x] Transporte HTTP 003 parcialmente implementado e verificado com a fixture local.
-- [ ] M1 integrado: transporte, agenda, contadores, logs e relatório verificados.
+- [x] Transporte HTTP 003 implementado e verificado com a fixture local.
+- [x] M1 integrado: transporte, agenda, contadores, logs e relatório verificados; aceite condicionado ao envelope da 012.
 - [ ] M2/M3: persistência, credenciais e contratos protegidos verificados.
 - [ ] M4/M5: egress, NAT, agregação e falhas distribuídas verificados.
 - [ ] M6: configuração, acompanhamento e relatório React verificados.

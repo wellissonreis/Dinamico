@@ -1,6 +1,6 @@
 # Entrega de Rate Limiting — 2026-10-12
 
-Estado atual (2026-10-17): observabilidade 010 e CLI/relatório 011 implementados; calibração/gate 012 e transporte remanescente pendentes. M1/037 continuam parciais. Ver [012](implementation-cards/FICHA-012-ENGINE-VALIDATION.md) e [README atual](../README.md). O corpo desta entrega e suas continuações datadas são registros históricos; afirmações sobre host informativo ou Git inexistente descrevem aquelas datas.
+Estado atual (2026-10-21): **M1 local concluído**, com 001–012 implementadas/validadas, 573 testes por runtime Windows/Linux e perfil Windows de 10 RPS medido até 10 minutos sem drops. FICHA-037 conclui apenas a etapa M1; marcos seguintes permanecem futuros. Ver [012](implementation-cards/FICHA-012-ENGINE-VALIDATION.md) para ambiente, parâmetros, limitações WSL e alcance do aceite, e [README atual](../README.md). O corpo desta entrega e suas continuações datadas são registros históricos; afirmações sobre host informativo ou Git inexistente descrevem aquelas datas.
 
 ## Estágio e escopo original
 

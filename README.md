@@ -4,7 +4,7 @@
 
 CLI local para carga HTTP/1.1 constante, com agenda open-loop e relatório JSON. Somente HTTP(S) com **IP loopback literal**, como `127.0.0.1` ou `[::1]`; `localhost`, DNS e destinos externos são recusados. Sem retries, redirects, proxy de ambiente, cookies ou descompressão automática. TLS conserva a validação de certificado.
 
-Estado atual: componentes 001–009, observabilidade 010 e CLI/relatório 011 disponíveis; transporte 003 ainda parcial e gate de calibração 012 pendente. **M1 e FICHA-037 não estão concluídos.** Validação final: **541 testes aprovados**, 25 direcionados, build Release sem avisos/erros. As contagens de 515 testes da continuação 009 são históricas; detalhes e evidências em [FICHA-012](docs/implementation-cards/FICHA-012-ENGINE-VALIDATION.md).
+Estado atual (2026-10-21): **M1 concluído no escopo HTTP/1.1 local loopback**. Componentes 001–012 implementados e validados; **573 testes aprovados no Windows e 573 no Linux**, build Release sem avisos/erros e restore locked-mode aprovado. Perfil Windows de 10 RPS: três repetições de 30 s, 2 min e 10 min sem drops; WSL com CPU restrita sinaliza corretamente geração limitada. Isso não estabelece capacidade máxima ou remota. FICHA-037 tem a etapa M1 concluída; persistência, controle, distribuição e UI seguem nos próximos marcos. Evidências e limites em [FICHA-012](docs/implementation-cards/FICHA-012-ENGINE-VALIDATION.md).
 
 ## Executar contra sua aplicação
 
@@ -120,8 +120,21 @@ Para repetir os probes de 10/100 RPS por 30 s contra a fixture, após compilar a
 dotnet run --project tools/Dinamico.LocalValidation -c Release -- .
 ```
 
-Os relatórios/contagens recebidas/ambiente/hash da projeção segura ficam em `TestResults/Ficha012/Smoke/`. A flag `functionalPassed` verifica conciliação; `nonSaturatedGatePassed` verifica separadamente o gate sem drops. Os primeiros probes mostraram 22/300 e 237/3.000 drops por atraso, com `GeneratorLimited`; o fluxo e os dados completos não representam aceite de capacidade. Resultados finais desta entrega na [012](docs/implementation-cards/FICHA-012-ENGINE-VALIDATION.md).
+As novas rodadas preservam relatórios, contagens, ambiente, hashes dos binários/planos e recursos em `TestResults/Ficha012/Smoke/<UTC>/`. A flag `functionalPassed` verifica conciliação; `nonSaturatedGatePassed` verifica separadamente o gate sem drops. `--require-gates` faz o utilitário retornar 1 também quando capacidade reprova. Registros anteriores de 22/300 e 237/3.000 drops são históricos; dados completos não significam aceite de capacidade. Resultados atuais na [012](docs/implementation-cards/FICHA-012-ENGINE-VALIDATION.md).
 
-Warm-up separado, três repetições, CPU restrita, plateau de recursos em 2/10 minutos e envelope medido continuam pendentes. CPU/RSS/heap são amostras operacionais locais, sem isolamento de interferência entre gerador e alvo. Alocações, pausas GC, sockets/fila de handler e throttling não são medidos nesta entrega. Sem eles, não há evidência para encerrar M1 ou afirmar capacidade de produção.
+Para diagnóstico curto ou calibração sequencial (a rodada completa leva cerca de 27 minutos):
+
+```sh
+dotnet run --project tools/Dinamico.LocalValidation -c Release -- . --quick
+dotnet run --project tools/Dinamico.LocalValidation -c Release -- . --calibrate --require-gates
+```
+
+Calibração usa warmup separado, três repetições de 30 s por taxa e ensaios de 2/10 min. `--rps 10`, `--durations 30,120,600`, `--repetitions 3` e `--output DIRETORIO` permitem rodadas direcionadas; repetições explícitas valem para todas as durações. Warmup separado aquece alvo/caches, sem aquecer o JIT do processo medido. `manifest.json` registra essa condição, ambiente e SHA-256 dos binários. O diretório de evidências não pode conter um manifesto anterior. Ctrl+C encerra o gerador ativo; uma rodada interrompida conserva somente os cenários concluídos.
+
+`result.scheduler` informa quantum/tolerância, atraso máximo nos polls e descartes por atraso, teto de microbatelada e fim. Descartes adicionais registrados pelo controlador entre polls permanecem no total `SchedulerLate`. A espera Windows usa timer de alta resolução; Linux usa `Task.Delay`. O contrato de 1 ms/5 ms e a ausência de catch-up são preservados.
+
+`process.summary` inclui alocações/pausas/coletas GC, heap da última coleta, handles, fila/threads do ThreadPool e contagens/espera agregadas do handler HTTP. Não há tags nem destinos nas medições. `http_*` cobre o processo desde a assinatura, podendo incluir outros clientes e saldos negativos de conexões anteriores; não conta sockets do kernel. Atividade do handler termina nos headers; consumo do corpo continua no contador do motor. Ausência de medição produz null; heap GC zero pode significar que nenhuma coleta ocorreu.
+
+O aceite considera repetições, CPU restrita, estabilidade de recursos em 2/10 minutos e envelope condicionado ao host; resultados e critérios ainda abertos estão na [012](docs/implementation-cards/FICHA-012-ENGINE-VALIDATION.md). As amostras locais não isolam interferência entre gerador e alvo. Conexões/fila do handler são instrumentadas; sockets do kernel, throttling e contenção de locks não têm medição direta. Os ensaios locais não demonstram capacidade de produção.
 
 Arquitetura e semântica canônica: [03](docs/03-LOAD-ENGINE-DESIGN.md), [ADRs](docs/adr/README.md), [fichas](docs/implementation-cards/README.md). Evidências de 119/455/496/515 testes e do host informativo são registros históricos, preservados nas fichas; não descrevem a CLI atual. Não foram incluídos banco, Control Plane, Kubernetes, React ou ingestão distribuída.

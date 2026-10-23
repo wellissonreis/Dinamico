@@ -1,6 +1,6 @@
 # FICHA-004 — Duração monotônica e deadline por operação
 
-Prioridade: P0. Complexidade: M. Marco: M1. Status: implementada e validada em 2026-10-13; gate integrado M1 pendente.
+Prioridade: P0. Complexidade: M. Marco: M1. Status: implementada em 2026-10-13; integração M1 validada no gate 012 de 2026-10-21.
 
 ## Objetivo
 

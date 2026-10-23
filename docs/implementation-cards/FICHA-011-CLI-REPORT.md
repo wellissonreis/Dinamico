@@ -1,6 +1,6 @@
 # FICHA-011 — CLI local e relatório de resultados
 
-Prioridade: P0. Complexidade: M. Marco: M1. Status: implementada e validada localmente em 2026-10-17; gate de calibração 012 pendente.
+Prioridade: P0. Complexidade: M. Marco: M1. Status: implementada em 2026-10-17; relatório/cleanup ampliados e gate 012 validado em 2026-10-21.
 
 ## Objetivo
 

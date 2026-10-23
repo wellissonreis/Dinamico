@@ -1,6 +1,6 @@
 # FICHA-006 — Admissão com concorrência limitada
 
-Prioridade: P0. Complexidade: M. Marco: M1. Status: implementada e validada em 2026-10-13; integração ao host 009 pendente.
+Prioridade: P0. Complexidade: M. Marco: M1. Status: implementada em 2026-10-13; integrada ao host 009 e validada no gate 012 de 2026-10-21.
 
 ## Objetivo
 

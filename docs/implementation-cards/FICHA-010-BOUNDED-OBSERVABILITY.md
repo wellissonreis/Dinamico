@@ -1,6 +1,6 @@
 # FICHA-010 — Logs estruturados e amostras limitadas
 
-Prioridade: P0. Complexidade: P. Marco: M1. Status: implementada e validada localmente em 2026-10-17; calibração/aceite M1 continuam na 012.
+Prioridade: P0. Complexidade: P. Marco: M1. Status: implementada em 2026-10-17; recursos/cleanup ampliados e gate 012 validado em 2026-10-21.
 
 ## Objetivo
 
@@ -77,5 +77,15 @@ Amostragem não permite reconstruir cada requisição. Mensagens de bibliotecas 
 `Observability/BoundedRunObservability.cs` consome somente modo, janelas imutáveis e resultado seguro; não recebe configuração, URL, headers, payload ou exceptions. A CLI chama Start, ObserveWindow no ACK da saída e Finish. Transições do controlador são publicadas no encerramento; não há callback de logging no hot path. Resumo operacional a cada janela, inclusive final parcial, com CPU acumulada, RSS e heap; medições não disponíveis ficam nulas. Alocações, pausas GC, sockets/handler e throttling não foram instrumentados.
 
 Pump independente com fila de 32 linhas; produtores não aguardam stderr. Encerramento da CLI espera até 1 s; timeout/falha ficam no snapshot do relatório. Linhas <=4 KiB e amostras <=512 bytes por construção/teste; até 5 por janela/100 por execução. Fingerprint categoria/status tem intervalo de 30 s e contador de suprimidos. Categorias terminais precedem HTTP, preservando categoria rara sob tempestade 429/503. Acima do orçamento, os descartes são explícitos. Erros de transporte são uma categoria agregada (não há exemplos com fase DNS/TLS). Amostras ficam em stderr; relatório contém estatísticas da observabilidade. Métricas não são reduzidas por amostragem.
+
+## Continuação — recursos do runtime (2026-10-21)
+
+`process.summary` acrescenta alocações acumuladas (`GC.GetTotalAllocatedBytes(false)`), tamanho/fragmentação do heap na última coleta, contagens por geração, pausa GC acumulada, handles do processo e fila/threads do ThreadPool. Heap da última coleta pode ser zero antes da primeira coleta; não confundir esse campo com `managed_heap_bytes` nem alocações acumuladas com memória retida.
+
+`HttpRuntimeMetrics` agrega somente três [instrumentos oficiais de System.Net.Http](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/built-in-metrics-system-net): conexões abertas, requisições ativas e tempo na fila de conexão. Snapshot com contagens atuais/picos e N/soma/máximo de espera, estado O(1), sem ler ou reter tags. Campos ficam nulos até observação efetiva. São deltas do processo desde a assinatura, incluindo outros HttpClients concorrentes; conexões anteriores podem produzir saldo negativo. Requisições ativas do handler terminam nos headers, antes da leitura do corpo pelo motor. Não representam sockets do kernel, fila de admissões ou latência exclusiva do servidor. Listener encerrado junto à observabilidade.
+
+Seis testes verificam tipos, ausência de observação, concorrência, descarte, extremos/canários e transporte real com corpo/espera de conexão. Suíte Linux integrada: 571 aprovados, sem falhas/ignorados (`TestResults/M1/LinuxFinal/`), build Release sem avisos/erros. Sem coleta de conteúdo, nomes/valores de tags, novos logs por request ou dependências externas. Throttling de cgroup/host e contenção de locks continuam sem medição direta.
+
+Fechamento: sete testes do listener, teste de duas invocações da CLI com falha de criação da saída e suíte final de **573 aprovados em cada runtime Windows/Linux**. `finally` da CLI encerra o listener/pump também fora do caminho normal. Uma amostra negativa de heap aproximado observada na calibração passou a ser publicada como null; leituras indisponíveis não são convertidas em zero. Retenção/recursos e limites revisados na [012](FICHA-012-ENGINE-VALIDATION.md).
 
 Evidência: `BoundedObservabilityTests` verifica três modos, 125 janelas com 600 respostas HTTP e uma falha rara/janela, limites, deduplicação, writer bloqueado ignorando token e exception com canário. `CliProcessTests` injeta canários em bearer/API key/header personalizado/path/query/payload/Retry-After inválido e verifica stderr/relatório, incluindo JSON de erro. Rodada integrada e artefatos detalhados na [012](FICHA-012-ENGINE-VALIDATION.md). Não é ensaio prolongado de capacidade.
