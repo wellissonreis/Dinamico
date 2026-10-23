@@ -40,9 +40,19 @@ public sealed class ApiTests
         using var local = Request(route, Plan("http://127.0.0.1:8888"));
         local.Headers.Add("Origin", "http://localhost:5173");
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await app.Client.SendAsync(local)).StatusCode);
-        using var oversized = new HttpRequestMessage(HttpMethod.Post, route) { Content = new StringContent(new string('x', 2 * 1024 * 1024 + 1), System.Text.Encoding.UTF8, "application/json") };
+        var oversizedBody = JsonSerializer.SerializeToNode(Plan("http://127.0.0.1:8888"))!;
+        oversizedBody["payload"] = new string('x', 2 * 1024 * 1024);
+        using var oversized = new HttpRequestMessage(HttpMethod.Post, route)
+        {
+            Content = new StringContent(oversizedBody.ToJsonString(), System.Text.Encoding.UTF8, "application/json")
+        };
         oversized.Headers.Add("X-Dinamico-Client", "local-ui");
-        Assert.Equal(HttpStatusCode.BadRequest, (await app.Client.SendAsync(oversized)).StatusCode);
+        // The server rejects the advertised length before reading; do not race that rejection
+        // with a multi-megabyte upload, which can otherwise surface as a client broken pipe.
+        oversized.Headers.ExpectContinue = true;
+        using var rejectedBody = await app.Client.SendAsync(oversized);
+        Assert.Equal(HttpStatusCode.BadRequest, rejectedBody.StatusCode);
+        Assert.Equal("invalid_request", (await rejectedBody.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.BadRequest, (await app.Client.GetAsync($"/api/projects/{Guid.Empty}/active")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await app.Client.GetAsync(route + "?limit=0")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await app.Client.GetAsync(route + "?cursor=invalid")).StatusCode);
