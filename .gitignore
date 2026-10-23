@@ -3,3 +3,10 @@
 **/TestResults/
 .vs/
 *.user
+**/node_modules/
+FrontEnd/dist/
+FrontEnd/playwright-report/
+FrontEnd/test-results/
+FrontEnd/*.tsbuildinfo
+.env
+.env.local
