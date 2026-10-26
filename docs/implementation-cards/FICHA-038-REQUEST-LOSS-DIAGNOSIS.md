@@ -1,14 +1,20 @@
 # FICHA-038 — Investigar requisições ausentes ao elevar a carga
 
-Origem: ficha 1 relatada pelo usuário em 2026-10-25. Prioridade: P0. Status: diagnóstico implementado e validado no escopo local; reprodução da execução original pendente dos parâmetros/resultado daquele teste.
+Origem: ficha 1 relatada pelo usuário em 2026-10-25. Prioridade: P0. Status: diagnóstico entregue e defeito de precisão da espera Linux/WSL corrigido e validado; atribuição à execução original ainda depende dos parâmetros/resultado daquele teste.
 
 ## Entrega atual — 2026-10-25
+
+Continuação: a perda de aproximadamente metade foi reproduzida no Linux/WSL com fixture rápida, três vezes. A espera gerenciada acordava em grade próxima de 4 ms e o teto de duas ofertas por despertar limitava a geração a aproximadamente 490 req/s. Uma espera monotônica nativa para intervalos curtos recuperou mais de 99,7% das intenções nos ensaios de dez segundos e 99,94% em 120 segundos, sem mudar quantum/tolerância/teto ou habilitar retries. **635 testes aprovados em cada runtime Windows/Linux e seis de navegador.** [Correção, comandos e limites](../LINUX-SCHEDULER-DELIVERY.md). A identificação desse defeito não substitui a comparação com a configuração original do usuário.
 
 Funil, descartes por motivo, desfechos, status, cobertura e diagnóstico do scheduler disponíveis ao vivo, no histórico e no download. Testes determinísticos reproduzem descarte de metade por teto de despacho e por concorrência; ensaios HTTP reais crescentes conciliam todos os inícios com recebimento independente da fixture. Nenhuma perda silenciosa foi demonstrada nesses ensaios. A taxa de 1.000 req/s apresentou descartes do scheduler e não passou o gate de capacidade, mesmo com dados completos. Não atribuir esse resultado automaticamente ao teste original nem afirmar correção de um bug ainda não comprovado.
 
 Implementação em `src/Dinamico.Web/{Views,ExecutionService}.cs`, `FrontEnd/src/{RunChart,RunDiagnostics,RunResult}.tsx`, coleta em `src/Dinamico.LoadEngine/Observability` e testes do motor/web. [Resultados, custo medido e comandos](../DIAGNOSTICS-DELIVERY.md); [como usar](../WEB-LOCAL.md#diagnóstico-de-requisições-e-recursos). As seções seguintes preservam o plano e as evidências de abertura anteriores à implementação.
 
 Aceite local: 630 testes .NET e seis testes Chromium aprovados, builds Release/frontend aprovados. A investigação do relato original não é declarada encerrada apenas por reproduzir uma perda semelhante em cenário controlado.
+
+Continuação operacional: `scripts/validate-telemetry.mjs` reproduziu pressão real de concorrência pela API web contra o alvo instrumentado: 5.000 planejadas, 2.092 iniciadas/recebidas/completas, 2.905 recusas por concorrência e três descartes do scheduler, com cobertura completa. A diferença de 58,16% foi classificada antes do envio, sem perda entre início e recebimento. Parâmetros: 1.000 req/s, cinco segundos, C=32, timeout de dois segundos, demora solicitada de 64 ms; o atraso observado depende do runtime/host. É reprodução controlada de um mecanismo semelhante, não identificação automática da execução original.
+
+Os [ensaios prolongados](../DIAGNOSTICS-SOAK.md) fecharam a pendência de duração: em dez minutos a 1.000 req/s no Windows, 599.726 iniciadas/recebidas/completas de 600.000 planejadas e 274 descartes de scheduler, sem perda silenciosa ou quebra de cobertura. O gate de zero descartes continua reprovado; não declarar capacidade máxima nem geração exata.
 
 ## Objetivo
 

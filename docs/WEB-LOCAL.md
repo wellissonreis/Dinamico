@@ -81,6 +81,8 @@ Recursos/scheduler e metadados da captura são salvos no PostgreSQL com retenç�
 
 ### Correlação e exportação opcional
 
+Há um [laboratório local pronto com Jaeger e alvo instrumentado](TELEMETRY-LOCAL.md), separado da sua aplicação. O script `scripts/validate-telemetry.mjs` verifica a cadeia completa no backend real e reconcilia um caso de pressão de concorrência com o contador independente do alvo. Para investigar a sua execução real, use os parâmetros e a instrumentação da sua aplicação.
+
 Ative **Correlacionar requests com telemetria** com captura habilitada para propagar `traceparent` W3C. Sem opt-in, o transporte desliga a propagação automática de atividades do host. Headers explícitos `traceparent`/`tracestate` conflitam com correlação gerenciada e são recusados nesse modo. Complete correlaciona até 2.000 requests; Sampled seleciona deterministicamente no máximo 1.000 intenções distribuídas pelo plano. Nem toda amostra retida terá trace.
 
 Configure no **host**, antes de iniciar a API ou CLI:

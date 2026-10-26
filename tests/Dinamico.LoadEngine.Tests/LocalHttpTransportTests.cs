@@ -350,17 +350,11 @@ public sealed class LocalHttpTransportTests
                 schemaVersion = 2, url = fixture.Address.AbsoluteUri, requestsPerSecond = 10,
                 durationSeconds = 2, maxConcurrency = 1
             }));
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Dinamico.slnx")))
-                directory = directory.Parent;
-            Assert.NotNull(directory);
-            string configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
             var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
             {
                 RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false
             };
-            start.ArgumentList.Add(Path.Combine(directory.FullName, "src", "Dinamico.LoadEngine.Local", "bin",
-                configuration, "net10.0", "Dinamico.LoadEngine.Local.dll"));
+            start.ArgumentList.Add(CliTestAssembly.PathForCurrentBuild());
             foreach (string argument in new[] { "run", "--config", config, "--output", report })
                 start.ArgumentList.Add(argument);
             foreach (string name in new[] { "HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy" })

@@ -26,6 +26,11 @@ public sealed class SchedulerWait : ISchedulerWait
             await DelayWindowsAsync(boundedDelay, cancellationToken).ConfigureAwait(false);
             return;
         }
+        if (OperatingSystem.IsLinux() && Environment.Is64BitProcess && boundedDelay <= TimeSpan.FromMilliseconds(10))
+        {
+            await DelayLinuxAsync(boundedDelay, cancellationToken).ConfigureAwait(false);
+            return;
+        }
         // Task.Delay quantiza em milissegundos: arredondar para cima evita uma
         // sequência de esperas efetivamente zero junto à borda do segmento.
         long milliseconds = boundedDelay.Ticks / TimeSpan.TicksPerMillisecond
@@ -33,6 +38,39 @@ public sealed class SchedulerWait : ISchedulerWait
         boundedDelay = TimeSpan.FromTicks(checked(milliseconds * TimeSpan.TicksPerMillisecond));
         await Task.Delay(boundedDelay, cancellationToken).ConfigureAwait(false);
     }
+
+    // Linux managed timers can wake on a coarser grid than the 1 ms arrival quantum.
+    // A short monotonic native sleep avoids that quantization without spinning or changing
+    // process timer slack. The serial scheduler queues one wait at a time, never per request.
+    // Cancellation stops observing immediately; an already-running syscall may finish later.
+    [SupportedOSPlatform("linux")]
+    private static async Task DelayLinuxAsync(TimeSpan delay, CancellationToken token)
+    {
+        var requested = new LinuxTimespec(checked(delay.Ticks * 100));
+        Task<int> pending = Task.Run(() => ClockNanosleep(1, 0, in requested, 0), token);
+        int error;
+        try { error = await pending.WaitAsync(token).ConfigureAwait(false); }
+        catch
+        {
+            // Observe even linkage failures after cancellation; no native handles are retained.
+            _ = pending.ContinueWith(static task => { _ = task.Exception; }, CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            throw;
+        }
+        // EINTR is an early wake: the scheduler re-reads its absolute clock before offering.
+        // clock_nanosleep returns errno directly, independently of the thread's errno slot.
+        if (error is not (0 or 4)) throw new Win32Exception(error);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly struct LinuxTimespec(long nanoseconds)
+    {
+        public readonly long Seconds = 0;
+        public readonly long Nanoseconds = nanoseconds;
+    }
+
+    [DllImport("libc", EntryPoint = "clock_nanosleep", ExactSpelling = true)]
+    private static extern int ClockNanosleep(int clock, int flags, in LinuxTimespec requested, nint remaining);
 
     // Task.Delay on Windows follows the system timer resolution, which can exceed
     // the scheduler's 5 ms tolerance even on an idle machine. One high-resolution

@@ -2,6 +2,10 @@
 
 Atualização de 2026-10-25: [038 — Requisições ausentes ao elevar a carga](FICHA-038-REQUEST-LOSS-DIAGNOSIS.md) entrega diagnóstico e conciliação no escopo local; a causa da execução original ainda depende de seus parâmetros/resultado. [039 — Diagnóstico para desenvolvedores e telemetria](FICHA-039-DEVELOPER-DIAGNOSTICS.md) implementada localmente: gráficos detalhados, recursos persistidos, captura limitada e correlação/OTLP opt-in. [Evidências, ensaios e limites](../DIAGNOSTICS-DELIVERY.md); [uso](../WEB-LOCAL.md#diagnóstico-de-requisições-e-recursos).
 
+Continuação operacional: [Jaeger local e alvo instrumentado](../TELEMETRY-LOCAL.md) disponíveis com script de inicialização e validação real de traces. A reprodução controlada via API mostrou 58,16% de intenções não iniciadas por concorrência/scheduler, com todas as iniciadas recebidas no alvo; o relato original continua dependendo dos parâmetros daquela execução.
+
+Continuação validada: [defeito de precisão da espera Linux/WSL corrigido](../LINUX-SCHEDULER-DELIVERY.md), com recuperação de aproximadamente 49% para mais de 99,7% iniciadas nesse perfil. [Ensaios prolongados Windows de até dez minutos](../DIAGNOSTICS-SOAK.md) concluídos com contagens conciliadas e limites preservados. Suítes finais: 635 testes em cada plataforma, mais seis testes de navegador.
+
 Atualização de 2026-10-22: interface React local disponível no recorte antecipado das fichas 029–032, registrada na [030 — React local](FICHA-030-REACT-LOCAL.md). Editor, SSE, cancelamento e histórico conectados a M1/M2; [como usar](../WEB-LOCAL.md). M3–M5 e M6 completo permanecem pendentes, incluindo autenticação, distribuição e perfil em degraus.
 
 Atualização de 2026-10-22: **M2 concluído no escopo de persistência local**. [013](FICHA-013-POSTGRESQL.md), [014](FICHA-014-IDEMPOTENT-IMPORT.md) e [015](FICHA-015-RESULT-QUERIES.md) entregam PostgreSQL, importação idempotente e consulta/retenção. [Guia e validação](../M2-LOCAL-PERSISTENCE.md). Próximo marco: M3, começando pelo detalhamento da 016. O inventário histórico de M1 abaixo permanece como evidência daquele marco.

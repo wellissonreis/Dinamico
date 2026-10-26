@@ -2,6 +2,8 @@
 
 As fichas 038/039 entregam funil e causas de requisições, gráfico/tabelas por janela, recursos do gerador persistidos, captura individual opcional e correlação/exportação OTLP. [Configuração e interpretação](WEB-LOCAL.md#diagnóstico-de-requisições-e-recursos).
 
+Continuação da entrega: [espera Linux/WSL corrigida após reproduzir perda de metade](LINUX-SCHEDULER-DELIVERY.md), [ensaios prolongados de até dez minutos](DIAGNOSTICS-SOAK.md) e [Jaeger/alvo instrumentado prontos](TELEMETRY-LOCAL.md). O aceite atualizado tem 635 testes aprovados em cada plataforma Windows/Linux e seis de navegador; os 630 testes e ensaios curtos abaixo preservam a evidência da primeira etapa.
+
 ## Conclusão sobre as requisições ausentes
 
 O motor pode descartar intenções **antes de enviar HTTP**, por atraso/teto do scheduler ou concorrência. A interface anterior escondia essas causas num total. Os testes controlados demonstram exatamente 500 inícios/500 descartes por teto ao acordar a cada 4 ms com quantum de 1 ms a 1.000 req/s, mesmo com transporte imediato; outro caso demonstra 50/50 por concorrência. Todos os inícios têm um único terminal; os descartes não são requests que chegaram ao alvo.

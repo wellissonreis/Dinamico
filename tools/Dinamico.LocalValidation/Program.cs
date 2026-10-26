@@ -15,7 +15,7 @@ try
     if (options.Help)
     {
         Console.WriteLine("Usage: Dinamico.LocalValidation [repository] [--calibrate] [--quick] [--require-gates] " +
-            "[--durations 30,120,600] [--repetitions 3] [--rps 10,100] [--capture-mode Off|Sampled|Complete] [--output directory]\n" +
+            "[--durations 30,120,600] [--repetitions 3] [--rps 10,100] [--capture-mode Off|Sampled|Complete] [--engine CLI.dll] [--output directory]\n" +
             "Default: smoke, 10/100 RPS for 30s. Calibration: separate 10s warmup, three 30s runs per rate, " +
             "then one 120s and one 600s run per rate, sequentially. Use --repetitions to repeat every selected duration. " +
             "Quick: separate 2s warmup and two 5s runs per rate. Functional failures always return 1; " +
@@ -36,7 +36,8 @@ try
     // An apphost cannot launch another managed DLL; use dotnet next to it instead.
     if (!Path.GetFileNameWithoutExtension(host).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
         host = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
-    string engine = Path.Combine(repo, "src", "Dinamico.LoadEngine.Local", "bin", "Release", "net10.0", "Dinamico.LoadEngine.Local.dll");
+    string engine = options.EnginePath is { } suppliedEngine ? Path.GetFullPath(suppliedEngine)
+        : Path.Combine(repo, "src", "Dinamico.LoadEngine.Local", "bin", "Release", "net10.0", "Dinamico.LoadEngine.Local.dll");
     if (!File.Exists(engine)) throw new FileNotFoundException("Build the Release local CLI before validation.", engine);
     var scenarios = options.Scenarios().ToArray();
     if (options.CaptureMode == "Complete" && scenarios.Any(s => (long)s.Rps * s.DurationSeconds > 2000))
@@ -284,6 +285,7 @@ sealed class Options
     public bool RequireGates { get; private set; }
     public bool Help { get; private set; }
     public string CaptureMode { get; private set; } = "Off";
+    public string? EnginePath { get; private set; }
     private int[]? durations;
     private int? repetitions;
     private int[] rates = [10, 100];
@@ -303,6 +305,7 @@ sealed class Options
                 case "--require-gates": options.RequireGates = true; break;
                 case "--output": options.Output = Value(); break;
                 case "--capture-mode": options.CaptureMode = Value(); break;
+                case "--engine": options.EnginePath = Value(); break;
                 case "--durations": options.durations = PositiveList(Value(), 600); break;
                 case "--rps": options.rates = PositiveList(Value(), 1000); break;
                 case "--repetitions": options.repetitions = PositiveList(Value(), 100).Single(); break;

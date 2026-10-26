@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 2,
+  "url": "http://127.0.0.1:5095/work?delayMs=150",
+  "method": "GET",
+  "requestsPerSecond": 5,
+  "durationSeconds": 2,
+  "maxConcurrency": 4,
+  "requestTimeout": "00:00:03",
+  "captureMode": "Complete",
+  "correlateRequests": true
+}

@@ -299,15 +299,11 @@ public sealed class CliProcessTests
     private static extern int SetPipeSize(int descriptor, int command, int capacity);
     private static Process Start(RunFiles files, params string[] extra)
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Dinamico.slnx"))) directory = directory.Parent;
-        if (directory is null) throw new InvalidOperationException("Repository root unavailable.");
-        string configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
         var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
         {
             RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false
         };
-        start.ArgumentList.Add(Path.Combine(directory.FullName, "src", "Dinamico.LoadEngine.Local", "bin", configuration, "net10.0", "Dinamico.LoadEngine.Local.dll"));
+        start.ArgumentList.Add(CliTestAssembly.PathForCurrentBuild());
         foreach (string arg in new[] { "run", "--config", files.Config, "--output", files.Output }.Concat(extra)) start.ArgumentList.Add(arg);
         return Process.Start(start)!;
     }

@@ -32,19 +32,41 @@ public sealed class SchedulerWaitTests
         Assert.Equal(rate, offered + scheduler.SchedulerLate);
     }
 
-    [Fact]
-    public async Task Cancelled_long_waits_release_registration_and_subsequent_waits_work()
+    [Theory]
+    [InlineData(100_000)]
+    [InlineData(1_728_000_000_000)]
+    public async Task Cancelled_waits_release_registration_and_subsequent_waits_work(long ticks)
     {
         var wait = new SchedulerWait();
         for (int iteration = 0; iteration < 40; iteration++)
         {
             using var stop = new CancellationTokenSource();
-            var pending = wait.DelayAsync(TimeSpan.FromDays(2), stop.Token).AsTask();
+            var pending = wait.DelayAsync(TimeSpan.FromTicks(ticks), stop.Token).AsTask();
             stop.Cancel();
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-                await pending.WaitAsync(TimeSpan.FromSeconds(5)));
+            if (ticks > TimeSpan.TicksPerSecond)
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await pending.WaitAsync(TimeSpan.FromSeconds(5)));
+            else
+            {
+                // A short timer may win before the caller gets scheduled to cancel.
+                try { await pending.WaitAsync(TimeSpan.FromSeconds(5)); }
+                catch (OperationCanceledException) { Assert.True(stop.IsCancellationRequested); }
+            }
         }
         await wait.DelayAsync(TimeSpan.FromMilliseconds(1), default).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(5_000)]
+    [InlineData(100_000)]
+    [InlineData(100_001)]
+    public async Task Fine_and_managed_wait_boundaries_complete_and_respect_pre_cancellation(long ticks)
+    {
+        var wait = new SchedulerWait();
+        await wait.DelayAsync(TimeSpan.FromTicks(ticks), default).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        using var stop = new CancellationTokenSource();
+        stop.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => wait.DelayAsync(TimeSpan.FromTicks(ticks), stop.Token).AsTask());
     }
 
     [Fact]

@@ -2,6 +2,10 @@
 
 **Disponível:** motor HTTP local (M1), persistência PostgreSQL (M2) e painel React para execução, acompanhamento e histórico. O painel antecipa o recorte local do M6; autenticação, controle distribuído e perfil em degraus continuam pendentes. [Persistência M2](docs/M2-LOCAL-PERSISTENCE.md) · [Painel local](docs/WEB-LOCAL.md).
 
+O diagnóstico separa requisições não iniciadas de falhas após o envio, guarda recursos do gerador e oferece captura individual limitada e correlação OTLP. Há um [laboratório Jaeger com alvo instrumentado](docs/TELEMETRY-LOCAL.md) e um validador de contagens/traces para experimentar o fluxo completo localmente.
+
+A [espera Linux/WSL foi corrigida](docs/LINUX-SCHEDULER-DELIVERY.md) após reproduzir geração próxima de metade da taxa pedida; [ensaios prolongados e seus limites](docs/DIAGNOSTICS-SOAK.md) estão registrados. A faixa configurável continua distinta da capacidade medida de cada host/perfil.
+
 ## Usar o painel React
 
 No Linux/WSL, instale Node.js **22.12+**, npm, Docker Compose e o SDK .NET **10.0.204**. Na raiz do projeto:

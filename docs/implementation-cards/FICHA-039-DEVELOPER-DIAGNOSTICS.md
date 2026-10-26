@@ -12,6 +12,10 @@ Testes de contrato, coleta, transporte, persistência/retenção/replay/reiníci
 
 Aceite local: 630 testes .NET e seis testes Chromium aprovados; builds Release/frontend sem erros. A correção do overflow em 390 px foi retestada com o resultado detalhado e traces; legado e retenção individual mantêm ausência explícita de dados.
 
+Continuação operacional: [laboratório Jaeger reproduzível](../TELEMETRY-LOCAL.md) com alvo instrumentado, SDK fixado/lockfile, memória/CPU limitadas e validador real de API/traces. O painel desta sessão foi configurado para o backend local. A cadeia de IDs, opt-out, coletor indisponível e canários de segredos foram verificados no Jaeger; isso não equivale à instrumentação de uma aplicação externa não fornecida.
+
+A pendência de duração foi validada em [ensaios de 120/600 segundos](../DIAGNOSTICS-SOAK.md), mantendo limites de captura e todas as janelas de recursos. A continuação acrescentou [correção de precisão Linux](../LINUX-SCHEDULER-DELIVERY.md); o aceite atualizado tem 635 testes em cada runtime Windows/Linux e seis de navegador com Jaeger real configurado. Versões, comandos e ressalvas de recursos permanecem nos respectivos relatórios.
+
 ## Objetivo
 
 Permitir que o desenvolvedor identifique quando houve degradação, quais operações ficaram lentas ou falharam e quais evidências ajudam a localizar o gargalo. Entregar recursos do gerador persistidos e correlação opcional com telemetria da aplicação testada, com cobertura e custo explícitos.
