@@ -1,5 +1,7 @@
 namespace Dinamico.LoadEngine.Contracts;
 
+public enum RequestCaptureMode { Off, Sampled, Complete }
+
 /// <summary>Entrada não confiável. Não modificar arrays enquanto a validação está em andamento.</summary>
 public sealed record LoadTestConfiguration
 {
@@ -18,6 +20,8 @@ public sealed record LoadTestConfiguration
     /// <summary>Índice em Headers; somente identificação local, não referência de cofre ou grant.</summary>
     public int? TestCredentialHeaderIndex { get; init; }
     public bool TestAuthorizationDeclared { get; init; }
+    public RequestCaptureMode CaptureMode { get; init; }
+    public bool CorrelateRequests { get; init; }
 
     public override string ToString() => "LoadTestConfiguration { sensitive values omitted }";
 }

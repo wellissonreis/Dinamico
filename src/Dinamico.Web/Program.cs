@@ -65,13 +65,16 @@ public static class LocalWebApplication
                 || request.RateLimitMode is not ("Normal" or "Diagnostic" or "Authorized"))
                 return Error(400, "invalid_request", "Configuração inválida.");
             var mode = Enum.Parse<RateLimitMode>(request.RateLimitMode);
+            if (request.CaptureMode is not ("Off" or "Sampled" or "Complete"))
+                return Error(400, "invalid_capture", "Modo de captura inválido.");
             var validation = LocalPlanValidator.Validate(new()
             {
                 Url = request.Url, Method = request.Method, RequestsPerSecond = request.RequestsPerSecond,
                 DurationSeconds = request.DurationSeconds, MaxConcurrency = request.MaxConcurrency,
                 RequestTimeout = TimeSpan.FromSeconds(request.RequestTimeoutSeconds), RateLimitMode = mode,
                 Headers = request.Headers, Payload = Encoding.UTF8.GetBytes(request.Payload ?? ""),
-                TestCredentialHeaderIndex = request.TestCredentialHeaderIndex, TestAuthorizationDeclared = request.TestAuthorizationDeclared
+                TestCredentialHeaderIndex = request.TestCredentialHeaderIndex, TestAuthorizationDeclared = request.TestAuthorizationDeclared,
+                CaptureMode = Enum.Parse<RequestCaptureMode>(request.CaptureMode), CorrelateRequests = request.CorrelateRequests
             }, Guid.NewGuid());
             if (!validation.IsValid) return Results.Json(new { code = "invalid_plan", message = "Plano inválido.", errors = validation.Errors.Select(e => new { code = e.Code.ToString(), field = e.Field.ToString(), e.HeaderIndex }) }, statusCode: 400);
             if (!db.Available) return Error(503, "database_unavailable", "Banco de dados indisponível.");

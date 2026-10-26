@@ -35,6 +35,15 @@ public sealed class LocalReportReaderTests
             var totals = imported.Windows.Aggregate(MetricWindowTotals.Empty, (sum, window) => sum.Append(window));
             Assert.Equal((ulong)fixture.ReceivedCount, totals[MetricCounter.Started]);
             Assert.Equal(totals.FinalStatuses, totals.StatusReceived[329]);
+            Assert.NotNull(imported.Diagnostics);
+            Assert.Equal((long)totals.TerminalDuration.Count, imported.Diagnostics.Observed);
+            Assert.NotEmpty(imported.Diagnostics.Resources);
+            var legacy = json.DeepClone();
+            legacy.AsObject().Remove("diagnostics");
+            Assert.Null((await Read(legacy, project)).Diagnostics);
+            var missingResourceField = json.DeepClone();
+            missingResourceField["diagnostics"]!["resources"]![0]!.AsObject().Remove("threadPoolPending");
+            await Assert.ThrowsAsync<InvalidDataException>(() => Read(missingResourceField, project));
             // Unknown free-text data is never copied into the persisted contract.
             json["untrusted"] = canary;
             json["plan"]!["headers"] = canary;

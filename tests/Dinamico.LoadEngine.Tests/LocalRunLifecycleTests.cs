@@ -12,6 +12,20 @@ namespace Dinamico.LoadEngine.Tests;
 public sealed class LocalRunLifecycleTests
 {
     [Fact]
+    public async Task Optional_diagnostic_observer_failure_does_not_change_load_or_metric_coverage()
+    {
+        var time = new VirtualTime();
+        var transport = new ImmediateTransport(time);
+        var output = new Output { OnDiagnostics = () => throw new IOException("synthetic diagnostic sink") };
+        var result = await Runner(time, transport).RunAsync(Plan(), output).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(result.DataComplete);
+        Assert.Equal(LocalRunCompletion.Completed, result.Completion);
+        Assert.Equal(10, transport.Starts);
+        Assert.Equal(10UL, result.Totals[MetricCounter.HttpSuccess]);
+        Assert.NotEmpty(result.Diagnostics!.Resources);
+    }
+
+    [Fact]
     public async Task NaturalDrainDoesNotCancelActiveIoAndKeepsHeadersInTheirOwnWindow()
     {
         var time = new VirtualTime();
@@ -449,11 +463,13 @@ public sealed class LocalRunLifecycleTests
             Disposed.TrySetResult();
         }
     }
-    private sealed class Output : ILocalMetricOutput
+    private sealed class Output : ILocalMetricOutput, ILocalDiagnosticOutput
     {
         public readonly ConcurrentQueue<MetricWindow> Written = new();
         public Func<MetricWindow, CancellationToken, ValueTask>? OnWrite;
         public Func<CancellationToken, ValueTask>? OnFlush;
+        public Action? OnDiagnostics;
+        public void UpdateDiagnostics(Dinamico.LoadEngine.Observability.RunDiagnostics diagnostics) => OnDiagnostics?.Invoke();
         public async ValueTask WriteAsync(MetricWindow window, CancellationToken token)
         {
             if (OnWrite is not null) await OnWrite(window, token);

@@ -1,5 +1,7 @@
 # 06 — Observabilidade
 
+Atualização local de 2026-10-25: as fichas [038](implementation-cards/FICHA-038-REQUEST-LOSS-DIAGNOSIS.md) e [039](implementation-cards/FICHA-039-DEVELOPER-DIAGNOSTICS.md) implementam diagnóstico web/CLI, recursos persistidos, captura individual limitada e correlação/exportação OTLP opcionais. [Uso e limites atuais](WEB-LOCAL.md#diagnóstico-de-requisições-e-recursos). As seções de distribuição/controle abaixo continuam como desenho dos marcos futuros.
+
 ## Objetivo e limites
 
 Conseguir reconstruir intenção, plano, transições, autorização de tráfego, perda de dados e condições de processo sem logs por requisição. São três produtos diferentes: logs operacionais JSON em stdout, eventos duráveis de execução/auditoria no PostgreSQL e métricas agregadas do teste. Não usar stdout como fonte do relatório histórico.
@@ -10,7 +12,7 @@ No início, usar logging estruturado e instrumentação do runtime .NET, sem sta
 
 `execution_id` acompanha toda execução; `worker_slot` identifica parcela e `worker_attempt_id` identifica processo autorizado. `pod_uid`, `job_uid`, `plan_version`, `state_version` e `sequence` resolvem ambiguidades de retry. `correlation_id` é um ID gerado/validado em cada comando de API, propagado nos eventos decorrentes. `trace_id`/`span_id`, se disponíveis nas atividades do controle, são complementares; não criar um trace gigante com milhões de spans de carga.
 
-Não enviar IDs internos ou `traceparent` automaticamente ao sistema sob teste. Correlação com o alvo é opt-in futuro e altera a carga/headers, devendo constar no snapshot. Rejeitar caracteres de controle em IDs recebidos e limitar tamanho; valor livre do usuário não vira nome de evento.
+Não enviar IDs internos ou `traceparent` automaticamente ao sistema sob teste. Correlação com o alvo é opt-in explícito e altera a carga/headers; modo e habilitação constam no diagnóstico persistido junto ao snapshot. Sem opt-in, o transporte desabilita propagação automática de atividades. O recorte local usa IDs W3C gerados pelo motor e orçamento finito; ver 039. Rejeitar caracteres de controle em IDs recebidos e limitar tamanho; valor livre do usuário não vira nome de evento.
 
 Exemplo de início:
 

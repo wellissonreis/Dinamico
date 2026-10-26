@@ -8,6 +8,46 @@ namespace Dinamico.LoadEngine.Tests;
 
 public sealed class BoundedObservabilityTests
 {
+    [Fact]
+    public async Task Process_summary_preserves_execution_window_and_resource_fields()
+    {
+        using var writer = new StringWriter();
+        Guid executionId = Guid.NewGuid();
+        var observer = new BoundedRunObservability(writer, executionId);
+        var clock = new Clock();
+        var sink = new MetricWindowSink();
+        var collector = new MetricWindowCollector(clock, 0, sink);
+        collector.RecordNotStarted(NotStartedReason.ConcurrencyLimit, 50, 0);
+        collector.RecordNotStarted(NotStartedReason.SchedulerLate, 25, 0);
+        clock.Ticks = TimeSpan.FromSeconds(5).Ticks;
+        collector.Close();
+        Assert.True(sink.TryRead(out var window));
+        observer.ObserveWindow(window!);
+        Assert.True(await observer.CompleteAsync(TimeSpan.FromSeconds(5)));
+
+        var summaries = new List<JsonElement>();
+        foreach (string line in writer.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            using var document = JsonDocument.Parse(line);
+            if (document.RootElement.GetProperty("event").GetString() == "process.summary")
+                summaries.Add(document.RootElement.Clone());
+        }
+        var summary = Assert.Single(summaries);
+        Assert.Equal(executionId, summary.GetProperty("execution_id").GetGuid());
+        var data = summary.GetProperty("data");
+        Assert.Equal(0UL, data.GetProperty("window_index").GetUInt64());
+        Assert.Equal(clock.Ticks, data.GetProperty("elapsed_ticks").GetInt64());
+        Assert.Equal(50UL, data.GetProperty("concurrency_limit").GetUInt64());
+        Assert.Equal(25UL, data.GetProperty("scheduler_late").GetUInt64());
+        foreach (string field in new[] { "working_set_bytes", "managed_heap_bytes", "cpu_time_ticks",
+            "gc_total_allocated_bytes", "gc_total_pause_ticks", "thread_pool_pending_work_items" })
+        {
+            // Runtime support varies; unavailable must remain explicit, not fabricated as zero.
+            var value = data.GetProperty(field);
+            Assert.True(value.ValueKind == JsonValueKind.Null || value.GetInt64() >= 0, field);
+        }
+    }
+
     [Theory]
     [InlineData(RateLimitMode.Normal)]
     [InlineData(RateLimitMode.Authorized)]

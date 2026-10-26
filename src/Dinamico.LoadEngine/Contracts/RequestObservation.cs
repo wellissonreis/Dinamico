@@ -90,6 +90,10 @@ public readonly record struct RequestObservation
     public long ResponseBodyBytes { get; }
     public RequestErrorKind ErrorKind { get; }
     public RetryAfterObservation RetryAfter { get; }
+    public string? TraceId { get; init; }
+    public string? SpanId { get; init; }
+    public long? StartedTimestamp { get; init; }
+    public double? HeadersMilliseconds { get; init; }
     public bool IsRateLimited => StatusCode == 429;
     public bool IsAccepted(HttpSuccessRule rule) => rule switch
     {

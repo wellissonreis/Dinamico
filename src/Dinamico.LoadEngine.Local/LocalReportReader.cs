@@ -4,6 +4,9 @@ using Dinamico.LoadEngine.Contracts;
 using Dinamico.LoadEngine.Lifecycle;
 using Dinamico.LoadEngine.Metrics;
 using Dinamico.Persistence;
+using Dinamico.LoadEngine.Observability;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Dinamico.LoadEngine.Local;
 
@@ -102,7 +105,9 @@ public static class LocalReportReader
                 Completion = EnumValue<LocalRunCompletion>(result.GetProperty("completion")),
                 Reason = EnumValue<LocalRunReason>(result.GetProperty("reason")),
                 Failures = EnumValue<LocalRunFailure>(result.GetProperty("failures")),
-                Quality = EnumValue<MeasurementQuality>(result.GetProperty("quality"))
+                Quality = EnumValue<MeasurementQuality>(result.GetProperty("quality")),
+                Diagnostics = root.TryGetProperty("diagnostics", out var diagnostics) && diagnostics.ValueKind != JsonValueKind.Null
+                    ? ReadDiagnostics(diagnostics) : null
             };
         }
         catch (Exception ex) when (ex is JsonException or FormatException or OverflowException
@@ -125,6 +130,18 @@ public static class LocalReportReader
         }
         else if (value.ValueKind == JsonValueKind.Array)
             foreach (var item in value.EnumerateArray()) RejectDuplicates(item);
+    }
+
+    private static RunDiagnostics ReadDiagnostics(JsonElement value)
+    {
+        var parsed = value.Deserialize<RunDiagnostics>(new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver
+                { Modifiers = { type => { foreach (var property in type.Properties) property.IsRequired = true; } } }
+        }) ?? throw Invalid();
+        DiagnosticsCodec.Encode(parsed);
+        return parsed;
     }
 
     private static T EnumValue<T>(JsonElement value) where T : struct, Enum

@@ -124,7 +124,9 @@ public sealed class ApiTests
         Assert.Equal(JsonValueKind.Null, secondPage.GetProperty("nextCursor").ValueKind);
         await using var restarted = await RunningApp.Start(connection);
         var stored = await restarted.Client.GetFromJsonAsync<ExecutionView>(item);
-        Assert.Equal(done.Metrics, stored!.Metrics);
+        Assert.Equal(JsonSerializer.Serialize(done.Metrics), JsonSerializer.Serialize(stored!.Metrics));
+        Assert.Equal(JsonSerializer.Serialize(done.Diagnostics), JsonSerializer.Serialize(stored.Diagnostics));
+        Assert.NotEmpty(stored.Diagnostics!.Resources);
         Assert.Equal(done.Windows.Length, stored.Windows.Length);
         Assert.Equal("saved", stored.Persistence);
         using var terminalStream = await restarted.Client.GetAsync(item + "/events");

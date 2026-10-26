@@ -1099,6 +1099,10 @@ main {
 .table-scroll {
   overflow: auto;
 }
+/* Keep absolute screen-reader labels inside the locally scrolling table. */
+.table-scroll th {
+  position: relative;
+}
 table {
   width: 100%;
   border-collapse: collapse;
@@ -1767,3 +1771,23 @@ td > strong {
     scroll-behavior: auto !important;
   }
 }
+
+/* Diagnostic views retain native tables and disclosure controls for keyboard use. */
+.diagnostics-section { padding: 20px 24px; border-top: 1px solid #edf1f4; min-width: 0; }
+.diagnostics-section h3 { font-size: 12px; color: #445f6c; margin: 14px 0 12px; }
+.diagnostics-section p, .chart-note { font-size: 11px; line-height: 1.7; color: #718493; margin: 10px 0; }
+.diagnostics-section details, .window-details { margin: 14px 0; min-width: 0; }
+.diagnostics-section summary, .window-details summary { cursor: pointer; font-size: 11px; color: #355c61; padding: 8px 0; }
+.funnel { display: flex; flex-wrap: wrap; gap: 12px; }
+.funnel > div { flex: 1 1 100px; padding: 10px; background: #f5f9f8; border-radius: 6px; }
+.funnel dt { font-size: 10px; color: #718493; }
+.funnel dd { margin: 6px 0; font-size: 19px; color: #35515a; }
+.funnel small, .cause-list small { font-size: 9px; color: #718493; }
+.cause-list > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 7px 0; font-size: 11px; border-bottom: 1px solid #edf1f4; }
+.cause-list dd { margin: 0; }
+.chart-legend { flex-wrap: wrap; line-height: 1.7; }
+.chart-section caption, .diagnostics-section caption { text-align: left; font-size: 10px; color: #718493; padding: 10px 0; white-space: normal; }
+.diagnostics-section .table-scroll, .window-details .table-scroll { max-height: 420px; }
+.diagnostics-section a { color: #0d8175; }
+.result-panel, .workbench > * { min-width: 0; }
+@media (max-width: 640px) { .diagnostics-section { padding: 16px; } }

@@ -4,6 +4,7 @@ using Dinamico.LoadEngine.Metrics;
 using Dinamico.LoadEngine.Scheduling;
 using Dinamico.LoadEngine.Timing;
 using Dinamico.LoadEngine.Transport;
+using Dinamico.LoadEngine.Observability;
 
 namespace Dinamico.LoadEngine.Lifecycle;
 
@@ -66,12 +67,15 @@ public sealed class LocalRunController
         private bool metricsFailed, acceptMetrics = true, operationsDone, finished, outputFailed;
         private Task abortCallbacks = Task.CompletedTask;
         private MetricWindowTotals totals = MetricWindowTotals.Empty;
+        private readonly ResourceSampler resourceSampler = new();
+        private readonly RunDiagnosticCollector diagnostics;
 
         internal Session(LocalRunController owner, LoadTestPlan plan, ILocalMetricOutput output)
         {
             this.owner = owner;
             this.plan = plan;
             this.output = output;
+            diagnostics = new(plan.CaptureMode, plan.CorrelateRequests);
             t0 = owner.clock.GetTimestamp();
             metrics = new(owner.clock, t0, sink);
             schedule = ArrivalSchedule.FromPlan(plan);
@@ -224,12 +228,16 @@ public sealed class LocalRunController
                     {
                         Scheduler = new(scheduler.WakeCount, scheduler.LimitedWakeCount,
                             scheduler.ToleranceExceededDrops, scheduler.WakeCapacityDrops, scheduler.EndBoundaryDrops,
-                            scheduler.MaxObservedLateness, schedule.Quantum, schedule.LatenessTolerance)
+                            scheduler.MaxObservedLateness, schedule.Quantum, schedule.LatenessTolerance),
+                        Diagnostics = diagnostics.Snapshot(drained, new(scheduler.WakeCount, scheduler.LimitedWakeCount,
+                            scheduler.ToleranceExceededDrops, scheduler.WakeCapacityDrops, scheduler.EndBoundaryDrops,
+                            scheduler.MaxObservedLateness, schedule.Quantum, schedule.LatenessTolerance))
                     };
                 }
             }
             finally
             {
+                resourceSampler.Dispose();
                 monitorStop.Cancel();
                 // Structural failures still stop admissions/observe I/O before disposing the pool.
                 if (!finished) Stop(LocalRunReason.InternalFailure);
@@ -289,11 +297,31 @@ public sealed class LocalRunController
 
         private async Task<RequestObservation> SendAsync(long index, CancellationToken token)
         {
+            long start = owner.clock.GetTimestamp();
+            double? headersMilliseconds = null;
             try { metrics.RecordStarted(owner.clock.GetTimestamp()); }
             catch (Exception ex) { MetricFailure(ex); throw; }
-            try { return await transport!.SendAsync(index, token, ObserveHeaders).ConfigureAwait(false); }
-            catch (TransportObserverException ex) { MetricFailure(ex.InnerException ?? ex); throw; }
-            catch (Exception) { Stop(LocalRunReason.InternalFailure); throw; }
+            try
+            {
+                var observation = await transport!.SendAsync(index, token, headers =>
+                {
+                    headersMilliseconds = owner.clock.GetElapsedTime(start, headers.ObservedTimestamp).TotalMilliseconds;
+                    ObserveHeaders(headers);
+                }).ConfigureAwait(false);
+                diagnostics.Record(observation, owner.clock.GetElapsedTime(t0, observation.StartedTimestamp ?? start).TotalSeconds,
+                    observation.StartedTimestamp.HasValue ? observation.HeadersMilliseconds
+                        : headersMilliseconds <= observation.TerminalDuration.TotalMilliseconds ? headersMilliseconds : null);
+                return observation;
+            }
+            catch (TransportObserverException ex) { RecordInternal(); MetricFailure(ex.InnerException ?? ex); throw; }
+            catch (Exception) { RecordInternal(); Stop(LocalRunReason.InternalFailure); throw; }
+
+            void RecordInternal()
+            {
+                var duration = owner.clock.GetElapsedTime(start, owner.clock.GetTimestamp());
+                diagnostics.Record(new(index, RequestOutcome.InternalFailed, duration < TimeSpan.Zero ? TimeSpan.Zero : duration,
+                    null, 0, RequestErrorKind.Internal), owner.clock.GetElapsedTime(t0, start).TotalSeconds, null);
+            }
         }
         private void ObserveHeaders(ResponseHeadersObservation observation)
         {
@@ -342,6 +370,13 @@ public sealed class LocalRunController
                 while (await sink.PeekAsync(outputStop.Token).ConfigureAwait(false) is { } window)
                 {
                     lock (gate) totals = totals.Append(window);
+                    try
+                    {
+                        diagnostics.Record(resourceSampler.Sample(window.WindowIndex, Elapsed().TotalSeconds));
+                        if (output is ILocalDiagnosticOutput diagnosticOutput)
+                            diagnosticOutput.UpdateDiagnostics(diagnostics.Snapshot());
+                    }
+                    catch (Exception) { /* Optional diagnostics must not invalidate canonical metric coverage. */ }
                     try { await output.WriteAsync(window, outputStop.Token).ConfigureAwait(false); }
                     catch (OperationCanceledException) when (outputStop.IsCancellationRequested) { return; }
                     catch (Exception)

@@ -175,6 +175,7 @@ internal sealed class JsonReportOutput : ILocalMetricOutput, IAsyncDisposable
                 "HTTP success, including 202, does not prove business completion." }
         });
         Write("observability", observability.Snapshot);
+        Write("diagnostics", result.Diagnostics);
         writer.WriteEndObject();
         await writer.FlushAsync(cancellationToken);
         await stream.FlushAsync(cancellationToken);

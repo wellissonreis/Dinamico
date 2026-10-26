@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Dinamico.LoadEngine.Contracts;
 using Dinamico.LoadEngine.Lifecycle;
 using Dinamico.LoadEngine.Metrics;
+using Dinamico.LoadEngine.Observability;
 using Dinamico.Persistence;
 
 namespace Dinamico.Web;
@@ -71,6 +72,8 @@ public sealed class ExecutionService(DatabaseState database) : IHostedService
         try
         {
             var result = await new LocalRunController().RunAsync(plan, session, session.Cancel.Token);
+            if (result.Diagnostics is { } detail)
+                result = result with { Diagnostics = await DiagnosticTraceExporter.ExportAsync(plan.ExecutionId, session.Started, detail) };
             session.Finish(result);
             try
             {
@@ -80,7 +83,8 @@ public sealed class ExecutionService(DatabaseState database) : IHostedService
                 using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
                 await database.Store!.ImportAsync(new(session.Project, session.Id, session.Started, session.Finished!.Value,
                     snapshot, session.Windows(), result.DataComplete, (ulong)result.PlannedTotal, (ulong)result.ScheduledDue,
-                    (ulong)result.NotScheduledAfterStop, result.Manifest, result.Completion, result.Reason, result.Failures, result.Quality), deadline.Token);
+                    (ulong)result.NotScheduledAfterStop, result.Manifest, result.Completion, result.Reason, result.Failures, result.Quality)
+                    { Diagnostics = result.Diagnostics }, deadline.Token);
                 session.Persisted(true);
             }
             catch (Exception) { session.Persisted(false); }
@@ -105,7 +109,7 @@ public sealed class ExecutionService(DatabaseState database) : IHostedService
             try { await work.WaitAsync(TimeSpan.FromSeconds(20), cancellationToken); }
             catch (Exception) { /* Shutdown remains bounded; no sensitive exception output. */ }
     }
-    private sealed class Session : ILocalMetricOutput
+    private sealed class Session : ILocalMetricOutput, ILocalDiagnosticOutput
     {
         private readonly object gate = new();
         private readonly List<MetricWindow> windows = new(133);
@@ -116,6 +120,7 @@ public sealed class ExecutionService(DatabaseState database) : IHostedService
         private LocalRunResult? result;
         private string persistence = "pending";
         private bool failed;
+        private RunDiagnostics? diagnostics;
         internal Session(Guid project, LoadTestPlan p)
         {
             Project = project; Id = p.ExecutionId; planned = (ulong)p.PlannedTotal;
@@ -139,6 +144,7 @@ public sealed class ExecutionService(DatabaseState database) : IHostedService
             return ValueTask.CompletedTask;
         }
         public ValueTask FlushAsync(MetricWindowManifest? manifest, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+        public void UpdateDiagnostics(RunDiagnostics value) { lock (gate) diagnostics = value; }
         internal void Finish(LocalRunResult value) { lock (gate) { result = value; totals = value.Totals; Finished = DateTimeOffset.UtcNow; clock.Stop(); } }
         internal void Persisted(bool saved) { lock (gate) persistence = saved ? "saved" : "failed"; }
         internal void Failed() { lock (gate) { failed = true; persistence = "failed"; Finished = DateTimeOffset.UtcNow; clock.Stop(); } }
@@ -147,7 +153,9 @@ public sealed class ExecutionService(DatabaseState database) : IHostedService
             lock (gate) return new(Id, Project, Started, Finished, failed ? "Failed" : result?.Completion.ToString() ?? "Running",
                 persistence, result?.DataComplete ?? false, Views.Quality(result?.Quality ?? totals.Quality),
                 failed ? "InternalFailure" : result?.Reason.ToString(), plan, Views.Metrics(planned, totals),
-                windows.Select(Views.Window).ToArray(), result?.TotalDuration.TotalSeconds ?? clock.Elapsed.TotalSeconds);
+                windows.Select(Views.Window).ToArray(), result?.TotalDuration.TotalSeconds ?? clock.Elapsed.TotalSeconds)
+                { NotScheduledAfterStop = result is { } final ? (ulong)final.NotScheduledAfterStop : null,
+                    Diagnostics = result?.Diagnostics ?? diagnostics };
         }
     }
 }

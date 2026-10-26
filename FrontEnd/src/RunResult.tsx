@@ -2,6 +2,7 @@ import { Check, CircleAlert, Clock3, Download, LoaderCircle, Radio } from 'lucid
 import type { Execution } from './api'
 import { date, milliseconds, number, stateLabels } from './api'
 import RunChart from './RunChart'
+import RunDiagnostics from './RunDiagnostics'
 
 export function StateBadge({ run }: { run: Execution }) {
   return <span className={`state-badge state-${run.state.toLowerCase()}`}>{run.state === 'Running' ? <span className="live-dot" /> : run.state === 'Completed' ? <Check size={12} /> : <CircleAlert size={12} />}{stateLabels[run.state]}</span>
@@ -34,6 +35,7 @@ export default function RunResult({ run, connected }: { run: Execution | null; c
     </div>
     <RunChart run={run} />
     <div className="detail-metrics"><div><span>P50</span><strong>{milliseconds(metrics?.p50Milliseconds)}</strong></div><div><span>P99</span><strong>{milliseconds(metrics?.p99Milliseconds)}</strong></div><div><span>Em voo</span><strong>{metrics ? number(metrics.inFlight) : '—'}</strong></div><div><span>HTTP 429</span><strong>{metrics?.rateLimitedPercent == null ? '—' : `${metrics.rateLimitedPercent.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}</strong></div></div>
+    {run && <RunDiagnostics run={run} />}
     {run && !running && <>
       {!run.dataComplete && <div className="notice warning-notice"><CircleAlert size={17} /><div><strong>Resultado parcial</strong><p>As métricas representam apenas os dados confirmados. Não extrapole os valores para toda a execução.</p></div></div>}
       {run.quality.includes('GeneratorLimited') && <div className="notice warning-notice"><CircleAlert size={17} /><div><strong>O gerador não atingiu a carga planejada</strong><p>Considere os descartes ao interpretar o desempenho do alvo.</p></div></div>}

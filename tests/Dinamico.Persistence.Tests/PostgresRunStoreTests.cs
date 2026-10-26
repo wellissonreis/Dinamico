@@ -1,4 +1,5 @@
 using Dinamico.LoadEngine.Contracts;
+using Dinamico.LoadEngine.Observability;
 using Dinamico.LoadEngine.Metrics;
 using Dinamico.LoadEngine.Lifecycle;
 using Dinamico.Persistence;
@@ -51,7 +52,7 @@ public sealed class PostgresRunStoreTests
     public async Task InsertAndMergeAreRolledBackTogether()
     {
         var store = Store(); await store.MigrateAsync();
-        var input = Input();
+        var input = Input() with { Diagnostics = Diagnostics() };
         string function = "fail_" + Guid.NewGuid().ToString("N");
         await Sql($"""
             CREATE FUNCTION dinamico_m2.{function}() RETURNS trigger LANGUAGE plpgsql AS $body$
@@ -154,23 +155,101 @@ public sealed class PostgresRunStoreTests
     public async Task MigrationChecksumIsEnforced()
     {
         var store = Store(); await store.MigrateAsync();
-        string checksum;
-        await using (var connection = new NpgsqlConnection(Connection))
+        foreach (int version in new[] { 1, 2 })
         {
-            await connection.OpenAsync();
-            await using var command = new NpgsqlCommand("SELECT checksum FROM public.dinamico_migrations WHERE version=1", connection);
-            checksum = (string)(await command.ExecuteScalarAsync())!;
+            string checksum;
+            await using (var connection = new NpgsqlConnection(Connection))
+            {
+                await connection.OpenAsync();
+                await using var command = new NpgsqlCommand("SELECT checksum FROM public.dinamico_migrations WHERE version=$1", connection);
+                command.Parameters.AddWithValue(version);
+                checksum = (string)(await command.ExecuteScalarAsync())!;
+            }
+            await Sql($"UPDATE public.dinamico_migrations SET checksum='invalid' WHERE version={version}");
+            try { await Assert.ThrowsAsync<InvalidDataException>(() => store.MigrateAsync()); }
+            finally { await Sql($"UPDATE public.dinamico_migrations SET checksum='{checksum}' WHERE version={version}"); }
         }
-        await Sql("UPDATE public.dinamico_migrations SET checksum='invalid' WHERE version=1");
+        await Sql("INSERT INTO public.dinamico_migrations VALUES(3,'future')");
         try { await Assert.ThrowsAsync<InvalidDataException>(() => store.MigrateAsync()); }
-        finally
-        {
-            await Sql($"UPDATE public.dinamico_migrations SET checksum='{checksum}' WHERE version=1");
-        }
-        await Sql("INSERT INTO public.dinamico_migrations VALUES(2,'future')");
-        try { await Assert.ThrowsAsync<InvalidDataException>(() => store.MigrateAsync()); }
-        finally { await Sql("DELETE FROM public.dinamico_migrations WHERE version=2"); }
+        finally { await Sql("DELETE FROM public.dinamico_migrations WHERE version=3"); }
     }
+
+    [Fact]
+    public async Task DiagnosticsRoundTripReplayConflictAndRetention()
+    {
+        var store = Store(); await store.MigrateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var input = Input() with { Diagnostics = Diagnostics() };
+        Assert.Equal(ImportResult.Inserted, await store.ImportAsync(input));
+        var loaded = (await Store().GetAsync(input.ProjectId, input.ExecutionId))!.Diagnostics!;
+        Assert.Equal(input.Diagnostics.Requests, loaded.Requests);
+        Assert.Equal(input.Diagnostics.Resources, loaded.Resources);
+        Assert.Equal(input.Diagnostics.Scheduler, loaded.Scheduler);
+        Assert.NotNull(Assert.Single((await store.ListAsync(input.ProjectId)).Items).Diagnostics);
+        Assert.Equal(ImportResult.Replayed, await store.ImportAsync(input));
+        await Assert.ThrowsAsync<ImportConflictException>(() => store.ImportAsync(input with
+            { Diagnostics = input.Diagnostics with { ExportState = "failed" } }));
+        var legacy = Input(); await store.ImportAsync(legacy);
+        Assert.Null((await store.GetAsync(legacy.ProjectId, legacy.ExecutionId))!.Diagnostics);
+        await Assert.ThrowsAsync<ImportConflictException>(() => store.ImportAsync(legacy with { Diagnostics = Diagnostics() }));
+        await store.PruneAsync(now.AddDays(8), 200);
+        loaded = (await Store().GetAsync(input.ProjectId, input.ExecutionId))!.Diagnostics!;
+        Assert.Empty(loaded.Requests); Assert.Single(loaded.Resources);
+        Assert.Equal(1, loaded.Retained); Assert.NotNull(loaded.Scheduler);
+        Assert.Equal(ImportResult.Replayed, await store.ImportAsync(input));
+        await store.PruneAsync(now.AddDays(31), 200);
+        Assert.Null(await store.GetAsync(input.ProjectId, input.ExecutionId));
+        await using var connection = new NpgsqlConnection(Connection); await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("SELECT diagnostics IS NULL FROM dinamico_m2.executions WHERE project_id=$1 AND id=$2", connection);
+        command.Parameters.AddWithValue(input.ProjectId); command.Parameters.AddWithValue(input.ExecutionId);
+        Assert.True((bool)(await command.ExecuteScalarAsync())!);
+    }
+
+    [Fact]
+    public async Task StoredDiagnosticsAreValidatedAndDatabaseEnforcesByteLimit()
+    {
+        var store = Store(); await store.MigrateAsync();
+        var input = Input() with { Diagnostics = Diagnostics() };
+        await store.ImportAsync(input);
+        await using var connection = new NpgsqlConnection(Connection); await connection.OpenAsync();
+        await using var corrupt = new NpgsqlCommand("UPDATE dinamico_m2.executions SET diagnostics=jsonb_set(diagnostics,'{SchemaVersion}','2') WHERE project_id=$1 AND id=$2", connection);
+        corrupt.Parameters.AddWithValue(input.ProjectId); corrupt.Parameters.AddWithValue(input.ExecutionId);
+        await corrupt.ExecuteNonQueryAsync();
+        await Assert.ThrowsAsync<InvalidDataException>(() => Store().GetAsync(input.ProjectId, input.ExecutionId));
+        await using var oversized = new NpgsqlCommand("UPDATE dinamico_m2.executions SET diagnostics=jsonb_build_object('unsafe',repeat('x',2097152)) WHERE project_id=$1 AND id=$2", connection);
+        oversized.Parameters.AddWithValue(input.ProjectId); oversized.Parameters.AddWithValue(input.ExecutionId);
+        var failure = await Assert.ThrowsAsync<PostgresException>(() => oversized.ExecuteNonQueryAsync());
+        Assert.Equal(PostgresErrorCodes.CheckViolation, failure.SqlState);
+    }
+
+    [Fact]
+    public async Task RejectsUnsafeAndMalformedDiagnosticsBeforeWriting()
+    {
+        var store = new PostgresRunStore("Host=unused");
+        var safe = Diagnostics();
+        RunDiagnostics[] invalid = [
+            safe with { SchemaVersion = 2 }, safe with { CaptureMode = "secret-canary" },
+            safe with { ExportState = "secret-canary" }, safe with { Observed = 0 },
+            safe with { Observed = 2, Discarded = 1, CaptureComplete = false },
+            safe with { Requests = [safe.Requests[0] with { ArrivalIndex = 1 }] },
+            safe with { Resources = new ResourceSample[134] }, safe with { Requests = new RequestSample[2001] },
+            safe with { TraceUrlTemplate = "https://user:secret@host/trace/{traceId}" },
+            safe with { TraceUrlTemplate = "https://host/trace/{traceId}?token=secret" },
+            safe with { TraceUrlTemplate = "javascript:{traceId}" },
+            safe with { Requests = [safe.Requests[0] with { ErrorKind = "secret-canary" }] },
+            safe with { Requests = [safe.Requests[0] with { TraceId = "secret-canary" }] },
+            safe with { Requests = [safe.Requests[0] with { DurationMilliseconds = double.NaN }] },
+            safe with { Resources = [safe.Resources[0] with { WorkingSetBytes = -1 }] }
+        ];
+        foreach (var diagnostics in invalid)
+            await Assert.ThrowsAsync<InvalidDataException>(() => store.ImportAsync(Input() with { Diagnostics = diagnostics }));
+    }
+
+    private static RunDiagnostics Diagnostics() => new(1, "Complete", true, 1, 1, 0, true,
+        [new(0, 1, 100, 50, 2.5, 200, 0, 0, 0, 0, 0, 1, null, null)],
+        [new(0, 0, 1, .5, 200, "HttpCompleted", "None", new string('a', 32), new string('b', 16))],
+        new(1, 0, 0, 0, 0, TimeSpan.Zero, TimeSpan.FromMilliseconds(1), TimeSpan.FromMilliseconds(1)),
+        "not-configured", "https://traces.example/trace/{traceId}");
 
     private static ExecutionImport Input(bool twoWindows = false)
     {

@@ -33,28 +33,38 @@ public sealed class PostgresRunStore(string connectionString)
           FOREIGN KEY(project_id,execution_id) REFERENCES dinamico_m2.executions(project_id,id));
         """;
 
+    private const string DiagnosticsMigration = """
+        ALTER TABLE dinamico_m2.executions ADD COLUMN diagnostics jsonb;
+        ALTER TABLE dinamico_m2.executions ADD CONSTRAINT executions_diagnostics_size
+          CHECK(diagnostics IS NULL OR octet_length(diagnostics::text) <= 2097152);
+        """;
+
     public async Task MigrateAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await Open(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await Execute(connection, "SELECT pg_advisory_xact_lock(729418203125)", cancellationToken);
         await Execute(connection, "CREATE TABLE IF NOT EXISTS public.dinamico_migrations(version integer PRIMARY KEY, checksum text NOT NULL)", cancellationToken);
-        await using (var future = new NpgsqlCommand("SELECT count(*) FROM public.dinamico_migrations WHERE version <> 1", connection))
+        await using (var future = new NpgsqlCommand("SELECT count(*) FROM public.dinamico_migrations WHERE version NOT IN (1,2)", connection))
             if ((long)(await future.ExecuteScalarAsync(cancellationToken))! != 0)
                 throw new InvalidDataException("Unknown migration version. Upgrade the application before migrating.");
-        string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Migration)));
-        await using var query = new NpgsqlCommand("SELECT checksum FROM public.dinamico_migrations WHERE version=1", connection);
-        var previous = await query.ExecuteScalarAsync(cancellationToken);
-        if (previous is string checksum)
+        foreach (var (version, sql) in new[] { (1, Migration), (2, DiagnosticsMigration) })
         {
-            if (checksum != hash) throw new InvalidDataException("Migration 1 checksum mismatch.");
-        }
-        else
-        {
-            await Execute(connection, Migration, cancellationToken);
-            await using var insert = new NpgsqlCommand("INSERT INTO public.dinamico_migrations VALUES(1,$1)", connection);
-            insert.Parameters.AddWithValue(hash);
-            await insert.ExecuteNonQueryAsync(cancellationToken);
+            string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sql)));
+            await using var query = new NpgsqlCommand("SELECT checksum FROM public.dinamico_migrations WHERE version=$1", connection);
+            query.Parameters.AddWithValue(version);
+            var previous = await query.ExecuteScalarAsync(cancellationToken);
+            if (previous is string checksum)
+            {
+                if (checksum != hash) throw new InvalidDataException($"Migration {version} checksum mismatch.");
+            }
+            else
+            {
+                await Execute(connection, sql, cancellationToken);
+                await using var insert = new NpgsqlCommand("INSERT INTO public.dinamico_migrations VALUES($1,$2)", connection);
+                Add(insert, version, hash);
+                await insert.ExecuteNonQueryAsync(cancellationToken);
+            }
         }
         await transaction.CommitAsync(cancellationToken);
     }
@@ -66,13 +76,14 @@ public sealed class PostgresRunStore(string connectionString)
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await using var insert = new NpgsqlCommand("""
             INSERT INTO dinamico_m2.executions(project_id,id,started_utc,finished_utc,content_hash,snapshot_hash,schema_version,
-              snapshot,data_complete,planned_total,scheduled_due,not_scheduled,completion,reason,failures,quality)
-            VALUES($1,$2,$3,$4,$5,$6,1,$7,$8,$9,$10,$11,$12,$13,$14,$15) ON CONFLICT DO NOTHING
+              snapshot,data_complete,planned_total,scheduled_due,not_scheduled,completion,reason,failures,quality,diagnostics)
+            VALUES($1,$2,$3,$4,$5,$6,1,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) ON CONFLICT DO NOTHING
             """, connection);
         Add(insert, input.ProjectId, input.ExecutionId, input.StartedUtc.ToUniversalTime(), input.FinishedUtc.ToUniversalTime(),
             validated.Hash, SHA256.HashData(Encoding.UTF8.GetBytes(validated.Snapshot)));
         insert.Parameters.AddWithValue(NpgsqlDbType.Jsonb, validated.Snapshot);
         Add(insert, input.DataComplete, checked((long)input.PlannedTotal), checked((long)input.ScheduledDue), checked((long)input.NotScheduledAfterStop), (int)input.Completion, (int)input.Reason, (int)input.Failures, (int)input.Quality);
+        insert.Parameters.Add(new NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.Jsonb, Value = (object?)validated.Diagnostics ?? DBNull.Value });
         if (await insert.ExecuteNonQueryAsync(cancellationToken) == 0)
         {
             await using var existing = Scoped(connection, "SELECT content_hash FROM dinamico_m2.executions WHERE project_id=$1 AND id=$2", input.ProjectId, input.ExecutionId);
@@ -150,11 +161,11 @@ public sealed class PostgresRunStore(string connectionString)
         {
             await using var delete = Scoped(connection, "DELETE FROM dinamico_m2.windows WHERE project_id=$1 AND execution_id=$2", run.Project, run.Id);
             await delete.ExecuteNonQueryAsync(cancellationToken);
-            await using var update = Scoped(connection, "UPDATE dinamico_m2.executions SET detail_retained=false WHERE project_id=$1 AND id=$2 AND detail_retained", run.Project, run.Id);
+            await using var update = Scoped(connection, "UPDATE dinamico_m2.executions SET detail_retained=false,diagnostics=jsonb_set(diagnostics, '{Requests}', '[]'::jsonb) WHERE project_id=$1 AND id=$2 AND detail_retained", run.Project, run.Id);
             details += await update.ExecuteNonQueryAsync(cancellationToken);
             if (run.End <= now.UtcDateTime.AddDays(-30))
             {
-                await using var summary = Scoped(connection, "UPDATE dinamico_m2.executions SET summary=NULL,snapshot=NULL,summary_retained=false WHERE project_id=$1 AND id=$2 AND sealed AND summary_retained", run.Project, run.Id);
+                await using var summary = Scoped(connection, "UPDATE dinamico_m2.executions SET summary=NULL,snapshot=NULL,diagnostics=NULL,summary_retained=false WHERE project_id=$1 AND id=$2 AND sealed AND summary_retained", run.Project, run.Id);
                 summaries += await summary.ExecuteNonQueryAsync(cancellationToken);
             }
             if (run.End <= now.UtcDateTime.AddDays(-90))
@@ -176,13 +187,14 @@ public sealed class PostgresRunStore(string connectionString)
         return new(reader.GetInt64(0), reader.IsDBNull(1) ? null : reader.GetDecimal(1));
     }
 
-    private const string Columns = "project_id,id,created_utc,started_utc,finished_utc,snapshot,data_complete,planned_total,scheduled_due,not_scheduled,detail_retained,summary,completion,reason,failures,quality,schema_version,snapshot_hash,content_hash";
-    private static StoredExecution Read(NpgsqlDataReader reader) => new(reader.GetGuid(0), reader.GetGuid(1), reader.GetDateTime(2),
+    private const string Columns = "project_id,id,created_utc,started_utc,finished_utc,snapshot,data_complete,planned_total,scheduled_due,not_scheduled,detail_retained,summary,completion,reason,failures,quality,schema_version,snapshot_hash,content_hash,diagnostics";
+    private static StoredExecution Read(NpgsqlDataReader reader) => new StoredExecution(reader.GetGuid(0), reader.GetGuid(1), reader.GetDateTime(2),
         reader.GetDateTime(3), reader.GetDateTime(4), reader.IsDBNull(5) ? null : JsonSerializer.Deserialize<LocalRunSnapshot>(reader.GetString(5)),
         reader.GetBoolean(6), (ulong)reader.GetInt64(7), (ulong)reader.GetInt64(8), (ulong)reader.GetInt64(9), reader.GetBoolean(10),
         reader.IsDBNull(11) ? null : SummaryCodec.Decode(reader.GetFieldValue<byte[]>(11)),
         (LocalRunCompletion)reader.GetInt32(12), (LocalRunReason)reader.GetInt32(13), (LocalRunFailure)reader.GetInt32(14), (MeasurementQuality)reader.GetInt32(15), reader.GetInt32(16),
-        Convert.ToHexString(reader.GetFieldValue<byte[]>(17)), Convert.ToHexString(reader.GetFieldValue<byte[]>(18)));
+        Convert.ToHexString(reader.GetFieldValue<byte[]>(17)), Convert.ToHexString(reader.GetFieldValue<byte[]>(18)))
+        { Diagnostics = reader.IsDBNull(19) ? null : DiagnosticsCodec.Decode(reader.GetString(19), !reader.GetBoolean(10)) };
     private async Task<NpgsqlConnection> Open(CancellationToken ct)
     {
         var connection = new NpgsqlConnection(connectionString);
@@ -206,7 +218,7 @@ public sealed class PostgresRunStore(string connectionString)
         await using var command = new NpgsqlCommand(sql, connection); await command.ExecuteNonQueryAsync(ct);
     }
 
-    private static (byte[] Hash, string Snapshot, List<byte[]> Windows, RunSummary Summary) Validate(ExecutionImport input)
+    private static (byte[] Hash, string Snapshot, List<byte[]> Windows, RunSummary Summary, string? Diagnostics) Validate(ExecutionImport input)
     {
         ArgumentNullException.ThrowIfNull(input);
         Scope(input.ProjectId, input.ExecutionId);
@@ -258,6 +270,12 @@ public sealed class PostgresRunStore(string connectionString)
             || input.Windows.Count == 0 || totals.LastInFlight != 0
             || totals[MetricCounter.ScheduledDue] != input.ScheduledDue || complete.Quality != totals.Quality))
             throw new InvalidDataException("Complete import requires matching final manifest and drained metrics.");
+        string? diagnosticsJson = input.Diagnostics is null ? null : DiagnosticsCodec.Encode(input.Diagnostics);
+        if (input.Diagnostics is { } diagnostics && (
+            diagnostics.CaptureMode == "Complete" && input.PlannedTotal > Dinamico.LoadEngine.Observability.RunDiagnostics.MaximumRequests
+            || diagnostics.Requests.Any(r => (ulong)r.ArrivalIndex >= input.PlannedTotal)
+            || input.DataComplete && (ulong)diagnostics.Observed != totals.TerminalDuration.Count))
+            throw new InvalidDataException("Diagnostic coverage does not match the canonical run.");
         string snapshotJson = JsonSerializer.Serialize(snapshot);
         using var canonical = new MemoryStream();
         using (var writer = new BinaryWriter(canonical, Encoding.UTF8, true))
@@ -273,8 +291,9 @@ public sealed class PostgresRunStore(string connectionString)
             }
             writer.Write(windows.Count);
             foreach (var encoded in windows) writer.Write(encoded);
+            if (diagnosticsJson is not null) writer.Write(diagnosticsJson);
         }
-        return (SHA256.HashData(canonical.ToArray()), snapshotJson, windows, summary);
+        return (SHA256.HashData(canonical.ToArray()), snapshotJson, windows, summary, diagnosticsJson);
     }
     private static void ValidateWindow(MetricWindow value)
     {

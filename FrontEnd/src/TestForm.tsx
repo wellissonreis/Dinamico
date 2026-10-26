@@ -6,6 +6,7 @@ import { number } from './api'
 const initial = {
   url: 'http://127.0.0.1:5000/', method: 'GET', requestsPerSecond: 10, durationSeconds: 30,
   maxConcurrency: 32, requestTimeoutSeconds: 2, rateLimitMode: 'Normal', headers: '', payload: '',
+  captureMode: 'Off' as RunRequest['captureMode'], correlateRequests: false,
   testCredentialHeaderIndex: 0, testAuthorizationDeclared: false,
 }
 
@@ -19,6 +20,8 @@ export default function TestForm({ running, submitting, databaseAvailable, onSta
   const submit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)
+    if (form.captureMode === 'Complete' && form.requestsPerSecond * form.durationSeconds > 2000) { setError('A captura completa permite até 2.000 requisições planejadas. Reduza a taxa ou duração, ou escolha amostragem.'); return }
+    if (form.correlateRequests && form.captureMode === 'Off') { setError('Para correlacionar requisições, habilite a captura amostrada ou completa.'); return }
     const headers: RunRequest['headers'] = []
     for (const line of form.headers.split('\n').filter(line => line.trim())) {
       const separator = line.indexOf(':')
@@ -48,6 +51,10 @@ export default function TestForm({ running, submitting, databaseAvailable, onSta
         <div className="estimate"><span className="tiny-pulse" /><span><strong>{number(form.requestsPerSecond * form.durationSeconds || 0)}</strong> requisições planejadas</span></div>
         <details className="advanced"><summary><Settings2 size={15} /> Opções avançadas <ChevronDown size={15} /></summary><div className="advanced-content">
           <div className="two-fields"><div><label htmlFor="timeout">Timeout por requisição</label><div className="unit-input"><input id="timeout" type="number" required min="0.001" max="60" step="0.001" value={form.requestTimeoutSeconds} onChange={event => set('requestTimeoutSeconds', Number(event.target.value))} /><span>s</span></div></div><div><label htmlFor="mode">Modo</label><select id="mode" value={form.rateLimitMode} onChange={event => set('rateLimitMode', event.target.value)}><option value="Normal">Normal</option><option value="Diagnostic">Diagnóstico</option><option value="Authorized">Autorizado</option></select></div></div>
+          <label htmlFor="capture">Captura de requisições</label><select id="capture" value={form.captureMode} onChange={event => set('captureMode', event.target.value as RunRequest['captureMode'])}><option value="Off">Desligada</option><option value="Sampled">Amostrada</option><option value="Complete">Completa · até 2.000 planejadas</option></select>
+          <p className="field-hint">Diagnóstico opcional tem custo de coleta. A amostra é limitada e não representa cada requisição. Os contadores agregados permanecem independentes da captura.</p>
+          <label className="check-label"><input type="checkbox" checked={form.correlateRequests} onChange={event => set('correlateRequests', event.target.checked)} /> Correlacionar requisições com traces</label>
+          <p className="field-hint">Envia contexto de trace ao alvo quando habilitado. No modo amostrado, até 1.000 requisições recebem correlação; nem toda operação capturada terá trace. Na captura completa, o limite é 2.000 planejadas. Para investigar SQL, locks e dependências, instrumente a aplicação com OpenTelemetry e configure o backend de traces no host. A duração até headers inclui rede e espera do cliente.</p>
           <label htmlFor="headers">Headers <span>opcional</span></label><textarea id="headers" autoComplete="off" spellCheck="false" rows={3} value={form.headers} onChange={event => set('headers', event.target.value)} placeholder={'Content-Type: application/json'} /><p className="field-hint">Um por linha. Use apenas credenciais sintéticas no laboratório local. Os valores ficam somente nesta sessão.</p>
           {form.rateLimitMode === 'Authorized' && <div className="authorization"><label htmlFor="credential-index">Índice do header da credencial (começa em 0)</label><input id="credential-index" type="number" required min="0" step="1" value={form.testCredentialHeaderIndex} onChange={event => set('testCredentialHeaderIndex', Number(event.target.value))} /><label className="check-label"><input type="checkbox" required checked={form.testAuthorizationDeclared} onChange={event => set('testAuthorizationDeclared', event.target.checked)} /> Declaro que tenho autorização para este teste.</label><p className="field-hint">A declaração não altera a taxa nem remove limites.</p></div>}
           <label htmlFor="payload">Corpo da requisição <span>opcional · até 64 KiB</span></label><textarea id="payload" spellCheck="false" rows={3} value={form.payload} onChange={event => set('payload', event.target.value)} placeholder={'{"exemplo": true}'} />

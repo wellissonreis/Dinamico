@@ -15,7 +15,7 @@ try
     if (options.Help)
     {
         Console.WriteLine("Usage: Dinamico.LocalValidation [repository] [--calibrate] [--quick] [--require-gates] " +
-            "[--durations 30,120,600] [--repetitions 3] [--rps 10,100] [--output directory]\n" +
+            "[--durations 30,120,600] [--repetitions 3] [--rps 10,100] [--capture-mode Off|Sampled|Complete] [--output directory]\n" +
             "Default: smoke, 10/100 RPS for 30s. Calibration: separate 10s warmup, three 30s runs per rate, " +
             "then one 120s and one 600s run per rate, sequentially. Use --repetitions to repeat every selected duration. " +
             "Quick: separate 2s warmup and two 5s runs per rate. Functional failures always return 1; " +
@@ -39,9 +39,11 @@ try
     string engine = Path.Combine(repo, "src", "Dinamico.LoadEngine.Local", "bin", "Release", "net10.0", "Dinamico.LoadEngine.Local.dll");
     if (!File.Exists(engine)) throw new FileNotFoundException("Build the Release local CLI before validation.", engine);
     var scenarios = options.Scenarios().ToArray();
+    if (options.CaptureMode == "Complete" && scenarios.Any(s => (long)s.Rps * s.DurationSeconds > 2000))
+        throw new ArgumentException("Complete capture requires at most 2000 planned requests per scenario.");
     await WriteJson(Path.Combine(evidence, "manifest.json"), new
     {
-        schemaVersion = 1, createdUtc = DateTimeOffset.UtcNow, mode, options.RequireGates,
+        schemaVersion = 1, createdUtc = DateTimeOffset.UtcNow, mode, options.RequireGates, options.CaptureMode,
         environment = new { runtime = RuntimeInformation.FrameworkDescription, operatingSystem = RuntimeInformation.OSDescription,
             architecture = RuntimeInformation.ProcessArchitecture.ToString(), processorCount = Environment.ProcessorCount,
             stopwatchFrequency = Stopwatch.Frequency, stopwatchHighResolution = Stopwatch.IsHighResolution },
@@ -60,7 +62,7 @@ try
     foreach (var scenario in scenarios)
     {
         interrupt.Token.ThrowIfCancellationRequested();
-        var summary = await Run(scenario, fixture, host, engine, evidence, interrupt.Token);
+        var summary = await Run(scenario, fixture, host, engine, evidence, options.CaptureMode, interrupt.Token);
         summaries.Add(summary);
         await WriteJson(Path.Combine(evidence, scenario.Name + ".summary.json"), summary);
         Console.WriteLine(JsonSerializer.Serialize(new { summary.Scenario, summary.FunctionalPassed, summary.NonSaturatedGatePassed,
@@ -104,13 +106,13 @@ catch (Exception ex)
 }
 finally { Console.CancelKeyPress -= cancel; }
 
-static async Task<RunSummary> Run(Scenario scenario, ControlledHttpFixture fixture, string host, string engine, string evidence,
+static async Task<RunSummary> Run(Scenario scenario, ControlledHttpFixture fixture, string host, string engine, string evidence, string captureMode,
     CancellationToken cancellationToken)
 {
     string prefix = Path.Combine(evidence, scenario.Name);
     string config = prefix + ".config.json", report = prefix + ".report.json";
     await WriteJson(config, new { schemaVersion = 2, url = fixture.Address.ToString(), requestsPerSecond = scenario.Rps,
-        durationSeconds = scenario.DurationSeconds, maxConcurrency = 32, requestTimeout = "00:00:02" });
+        durationSeconds = scenario.DurationSeconds, maxConcurrency = 32, requestTimeout = "00:00:02", captureMode });
     long before = fixture.ReceivedCount, connectionsBefore = fixture.ConnectionCount;
     var start = new ProcessStartInfo(host) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
     foreach (string argument in new[] { engine, "run", "--config", config, "--output", report, "--overwrite" })
@@ -281,6 +283,7 @@ sealed class Options
     public bool Quick { get; private set; }
     public bool RequireGates { get; private set; }
     public bool Help { get; private set; }
+    public string CaptureMode { get; private set; } = "Off";
     private int[]? durations;
     private int? repetitions;
     private int[] rates = [10, 100];
@@ -299,6 +302,7 @@ sealed class Options
                 case "--quick": options.Quick = true; break;
                 case "--require-gates": options.RequireGates = true; break;
                 case "--output": options.Output = Value(); break;
+                case "--capture-mode": options.CaptureMode = Value(); break;
                 case "--durations": options.durations = PositiveList(Value(), 600); break;
                 case "--rps": options.rates = PositiveList(Value(), 1000); break;
                 case "--repetitions": options.repetitions = PositiveList(Value(), 100).Single(); break;
@@ -308,6 +312,7 @@ sealed class Options
             }
         }
         if (options.Quick && options.Calibrate) throw new ArgumentException("Choose --quick or --calibrate.");
+        if (options.CaptureMode is not ("Off" or "Sampled" or "Complete")) throw new ArgumentException("Invalid capture mode.");
         return options;
     }
 

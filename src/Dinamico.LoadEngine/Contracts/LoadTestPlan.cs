@@ -23,6 +23,8 @@ public sealed class LoadTestPlan
         SuccessRule = configuration.SuccessRule;
         TestCredentialHeaderIndex = configuration.TestCredentialHeaderIndex;
         TestAuthorizationDeclared = configuration.TestAuthorizationDeclared;
+        CaptureMode = configuration.CaptureMode;
+        CorrelateRequests = configuration.CorrelateRequests;
         // Cópias defensivas únicas por plano, nunca por requisição.
         Headers = ImmutableArray.CreateRange(configuration.Headers!);
         Payload = ImmutableArray.CreateRange(configuration.Payload!);
@@ -48,6 +50,8 @@ public sealed class LoadTestPlan
     public HttpSuccessRule SuccessRule { get; }
     public int? TestCredentialHeaderIndex { get; }
     public bool TestAuthorizationDeclared { get; }
+    public RequestCaptureMode CaptureMode { get; }
+    public bool CorrelateRequests { get; }
 
     public int MaxConnectionsPerServer => MaxConcurrency;
     public int ReadBufferBytes => LocalEngineLimits.ReadBufferBytes;

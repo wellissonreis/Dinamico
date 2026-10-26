@@ -1,3 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup><ProjectReference Include="../Dinamico.Persistence/Dinamico.Persistence.csproj" /></ItemGroup>
+  <ItemGroup><InternalsVisibleTo Include="Dinamico.Web.Tests" /></ItemGroup>
 </Project>

@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Security.Authentication;
+using System.Diagnostics;
 using Dinamico.LoadEngine.Contracts;
 using Dinamico.LoadEngine.Timing;
 
@@ -48,7 +49,8 @@ public sealed class LocalHttpTransport : IDisposable, ILocalRunTransport
             ConnectTimeout = plan.ConnectTimeout,
             PooledConnectionLifetime = plan.PooledConnectionLifetime,
             PooledConnectionIdleTimeout = plan.PooledConnectionIdleTimeout,
-            ConnectCallback = ConnectPinnedLoopbackAsync
+            ConnectCallback = ConnectPinnedLoopbackAsync,
+            ActivityHeadersPropagator = null
         };
         _client = new HttpClient(handler, disposeHandler: true) { Timeout = Timeout.InfiniteTimeSpan };
     }
@@ -66,10 +68,15 @@ public sealed class LocalHttpTransport : IDisposable, ILocalRunTransport
         int? status = null;
         long bodyBytes = 0;
         var retryAfter = default(RetryAfterObservation);
+        long correlationStride = _plan.CaptureMode == RequestCaptureMode.Complete ? 1 : Math.Max(1, (_plan.PlannedTotal + 999) / 1000);
+        bool correlate = _plan.CorrelateRequests && arrivalIndex % correlationStride == 0;
+        string? traceId = correlate ? ActivityTraceId.CreateRandom().ToHexString() : null;
+        string? spanId = correlate ? ActivitySpanId.CreateRandom().ToHexString() : null;
 
         try
         {
             using var request = CreateRequest();
+            if (traceId is not null) request.Headers.TryAddWithoutValidation("traceparent", $"00-{traceId}-{spanId}-01");
             deadline.Token.ThrowIfCancellationRequested();
             using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token)
                 .ConfigureAwait(false);
@@ -167,8 +174,14 @@ public sealed class LocalHttpTransport : IDisposable, ILocalRunTransport
         }
 
         var terminal = deadline.Result;
+        double? headersMilliseconds = deadline.HeadersTimestamp is { } headersTimestamp
+            ? _clock.GetElapsedTime(deadline.StartedTimestamp, headersTimestamp).TotalMilliseconds : null;
         return new RequestObservation(arrivalIndex, terminal.Outcome, terminal.Duration,
-            status, bodyBytes, terminal.Error, retryAfter);
+            status, bodyBytes, terminal.Error, retryAfter)
+        {
+            TraceId = traceId, SpanId = spanId, StartedTimestamp = deadline.StartedTimestamp,
+            HeadersMilliseconds = headersMilliseconds <= terminal.Duration.TotalMilliseconds ? headersMilliseconds : null
+        };
     }
 
     public void Dispose()

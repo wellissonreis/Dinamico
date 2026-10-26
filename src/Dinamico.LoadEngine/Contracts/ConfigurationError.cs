@@ -40,7 +40,9 @@ public enum ConfigurationField
     RetryPolicy,
     SuccessRule,
     TestCredentialHeaderIndex,
-    TestAuthorizationDeclared
+    TestAuthorizationDeclared,
+    CaptureMode,
+    CorrelateRequests
 }
 
 /// <summary>Apenas campos controlados pelo motor: nenhum valor da entrada vai para o erro.</summary>

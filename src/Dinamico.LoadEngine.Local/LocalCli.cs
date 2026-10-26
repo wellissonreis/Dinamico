@@ -111,7 +111,10 @@ public static class LocalCli
                 ObserveFault(creating);
                 return Error(3, "report.create_timed_out");
             }
+            DateTimeOffset runStarted = DateTimeOffset.UtcNow;
             var result = await new LocalRunController().RunAsync(plan, output, stop.Token);
+            if (result.Diagnostics is { } diagnostics)
+                result = result with { Diagnostics = await DiagnosticTraceExporter.ExportAsync(plan.ExecutionId, runStarted, diagnostics) };
             observability.Finish(result);
             await observability.CompleteAsync(TimeSpan.FromSeconds(1));
             if (!result.OutputStopped)

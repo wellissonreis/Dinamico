@@ -1,5 +1,7 @@
 # Índice de fichas
 
+Atualização de 2026-10-25: [038 — Requisições ausentes ao elevar a carga](FICHA-038-REQUEST-LOSS-DIAGNOSIS.md) entrega diagnóstico e conciliação no escopo local; a causa da execução original ainda depende de seus parâmetros/resultado. [039 — Diagnóstico para desenvolvedores e telemetria](FICHA-039-DEVELOPER-DIAGNOSTICS.md) implementada localmente: gráficos detalhados, recursos persistidos, captura limitada e correlação/OTLP opt-in. [Evidências, ensaios e limites](../DIAGNOSTICS-DELIVERY.md); [uso](../WEB-LOCAL.md#diagnóstico-de-requisições-e-recursos).
+
 Atualização de 2026-10-22: interface React local disponível no recorte antecipado das fichas 029–032, registrada na [030 — React local](FICHA-030-REACT-LOCAL.md). Editor, SSE, cancelamento e histórico conectados a M1/M2; [como usar](../WEB-LOCAL.md). M3–M5 e M6 completo permanecem pendentes, incluindo autenticação, distribuição e perfil em degraus.
 
 Atualização de 2026-10-22: **M2 concluído no escopo de persistência local**. [013](FICHA-013-POSTGRESQL.md), [014](FICHA-014-IDEMPOTENT-IMPORT.md) e [015](FICHA-015-RESULT-QUERIES.md) entregam PostgreSQL, importação idempotente e consulta/retenção. [Guia e validação](../M2-LOCAL-PERSISTENCE.md). Próximo marco: M3, começando pelo detalhamento da 016. O inventário histórico de M1 abaixo permanece como evidência daquele marco.
@@ -69,5 +71,7 @@ Desenvolver controles de segurança cedo não autoriza exposição pública ante
 | ID | Ficha | Prioridade / complexidade | Dependências |
 |---|---|---|---|
 | 037 | [Identificação e diagnóstico de Rate Limiting](FICHA-037-RATE-LIMITING.md) | P0 / G no conjunto | M1–M6, conforme etapas da ficha; não depende da 036 |
+| 038 | [Investigar requisições ausentes ao elevar a carga](FICHA-038-REQUEST-LOSS-DIAGNOSIS.md) | P0 / M | M1/M2 e recorte local 030; relaciona 012 e 037 |
+| 039 | [Diagnóstico para desenvolvedores e telemetria](FICHA-039-DEVELOPER-DIAGNOSTICS.md) | P1 / G por etapas | 038, 010, 013–015 e recorte local 030 |
 
 A ficha 037 tem sua etapa local M1 implementada e validada no gate 012. Persistência/controle pertencem a M2/M3, NAT/egress e distribuição a M4/M5, interface a M6; a conclusão integral depende desses marcos.

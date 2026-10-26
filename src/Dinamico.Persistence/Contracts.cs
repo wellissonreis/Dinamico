@@ -1,4 +1,5 @@
 using Dinamico.LoadEngine.Contracts;
+using Dinamico.LoadEngine.Observability;
 using Dinamico.LoadEngine.Metrics;
 using Dinamico.LoadEngine.Lifecycle;
 
@@ -13,7 +14,10 @@ public sealed record ExecutionImport(Guid ProjectId, Guid ExecutionId, DateTimeO
     DateTimeOffset FinishedUtc, LocalRunSnapshot Snapshot, IReadOnlyList<MetricWindow> Windows,
     bool DataComplete, ulong PlannedTotal, ulong ScheduledDue, ulong NotScheduledAfterStop,
     MetricWindowManifest? Manifest = null, LocalRunCompletion Completion = LocalRunCompletion.Completed,
-    LocalRunReason Reason = LocalRunReason.DurationElapsed, LocalRunFailure Failures = LocalRunFailure.None, MeasurementQuality Quality = MeasurementQuality.None);
+    LocalRunReason Reason = LocalRunReason.DurationElapsed, LocalRunFailure Failures = LocalRunFailure.None, MeasurementQuality Quality = MeasurementQuality.None)
+{
+    public RunDiagnostics? Diagnostics { get; init; }
+}
 public enum ImportResult { Inserted, Replayed }
 public sealed class ImportConflictException : Exception
 {
@@ -27,7 +31,10 @@ public sealed record StoredExecution(Guid ProjectId, Guid ExecutionId, DateTimeO
     DateTimeOffset StartedUtc, DateTimeOffset FinishedUtc, LocalRunSnapshot? Snapshot,
     bool DataComplete, ulong PlannedTotal, ulong ScheduledDue, ulong NotScheduledAfterStop,
     bool DetailRetained, RunSummary? Summary, LocalRunCompletion Completion, LocalRunReason Reason, LocalRunFailure Failures, MeasurementQuality Quality,
-    int SnapshotSchemaVersion, string SnapshotHash, string ContentHash);
+    int SnapshotSchemaVersion, string SnapshotHash, string ContentHash)
+{
+    public RunDiagnostics? Diagnostics { get; init; }
+}
 public sealed record HistogramSummary(ulong Count, ulong SumNanoseconds, ulong? MinimumNanoseconds,
     ulong? MaximumNanoseconds, ulong OverflowCount, ulong[] Counts)
 {

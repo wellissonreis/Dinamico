@@ -42,6 +42,13 @@ public static class LocalPlanValidator
 
         ValidateHeaders(configuration.Headers, errors);
         ValidateRateLimiting(configuration, errors);
+        if (!Enum.IsDefined(configuration.CaptureMode)
+            || configuration.CaptureMode == RequestCaptureMode.Complete && plannedTotal > Observability.RunDiagnostics.MaximumRequests)
+            errors.Add(new(ConfigurationErrorCode.OutOfRange, ConfigurationField.CaptureMode));
+        if (configuration.CorrelateRequests && (configuration.CaptureMode == RequestCaptureMode.Off
+            || configuration.Headers?.Any(h => h?.Name?.Equals("traceparent", StringComparison.OrdinalIgnoreCase) == true
+                || h?.Name?.Equals("tracestate", StringComparison.OrdinalIgnoreCase) == true) == true))
+            errors.Add(new(ConfigurationErrorCode.UnsupportedValue, ConfigurationField.CorrelateRequests));
         if (configuration.Payload is null)
             errors.Add(new(ConfigurationErrorCode.Required, ConfigurationField.Payload));
         else if (configuration.Payload.Length > LocalEngineLimits.MaxPayloadBytes)

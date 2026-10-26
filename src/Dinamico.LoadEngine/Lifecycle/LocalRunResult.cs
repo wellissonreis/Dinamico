@@ -22,6 +22,11 @@ public interface ILocalMetricOutput
     ValueTask FlushAsync(MetricWindowManifest? manifest, CancellationToken cancellationToken);
 }
 
+public interface ILocalDiagnosticOutput
+{
+    void UpdateDiagnostics(Observability.RunDiagnostics diagnostics);
+}
+
 /// <summary>Safe summary: no target URL, headers, payload, arbitrary exception text or per-request history.</summary>
 public sealed record LocalRunResult(
     Guid ExecutionId,
@@ -47,4 +52,5 @@ public sealed record LocalRunResult(
 {
     public bool DataComplete => OperationsDrained && MetricsCoverageComplete && FlushConfirmed && OutputStopped;
     public SchedulerDiagnostics? Scheduler { get; init; }
+    public Observability.RunDiagnostics? Diagnostics { get; init; }
 }
