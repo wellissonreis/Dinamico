@@ -30,13 +30,15 @@ public sealed class ApiTests
         using var externalOrigin = Request(route, Plan("http://127.0.0.1:8888"));
         externalOrigin.Headers.Add("Origin", "https://attacker.example");
         Assert.Equal(HttpStatusCode.Forbidden, (await app.Client.SendAsync(externalOrigin)).StatusCode);
-        foreach (string target in new[] { "http://example.com/SECRET", "http://192.168.1.1/SECRET", "http://127.0.0.1:8000/#SECRET" })
+        foreach (string target in new[] { "http://192.168.1.1/SECRET", "http://127.0.0.1:8000/#SECRET" })
         {
             using var request = Request(route, Plan(target));
             using var response = await app.Client.SendAsync(request);
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
             Assert.DoesNotContain("SECRET", await response.Content.ReadAsStringAsync());
         }
+        using var domain = Request(route, Plan("https://app-hub.cplus.com.br/"));
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await app.Client.SendAsync(domain)).StatusCode);
         using var local = Request(route, Plan("http://127.0.0.1:8888"));
         local.Headers.Add("Origin", "http://localhost:5173");
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await app.Client.SendAsync(local)).StatusCode);

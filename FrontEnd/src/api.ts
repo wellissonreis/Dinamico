@@ -64,7 +64,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { message?: string; errors?: { code: string; field: string }[] } | null
     const descriptions: Record<string, string> = {
-      LoopbackLiteralRequired: 'Use um IP loopback literal, como 127.0.0.1 ou [::1]. Hostnames e destinos externos não são permitidos.',
+      LoopbackLiteralRequired: 'Use um domínio HTTP/HTTPS ou um IP loopback literal, como 127.0.0.1 ou [::1].',
       InvalidUrl: 'Confira o endereço do endpoint. Use uma URL HTTP ou HTTPS válida, sem fragmento.',
       SchemeNotAllowed: 'O endpoint deve usar HTTP ou HTTPS.', UserInfoNotAllowed: 'Informe credenciais nos headers, não na URL.',
       InvalidHeader: 'Confira os headers: use um nome e valor válidos por linha.',

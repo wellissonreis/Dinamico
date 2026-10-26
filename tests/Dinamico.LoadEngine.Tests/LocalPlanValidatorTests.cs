@@ -57,9 +57,6 @@ public sealed class LocalPlanValidatorTests
     [InlineData("/relative")]
     [InlineData("ftp://127.0.0.1/file")]
     [InlineData("file:///etc/passwd")]
-    [InlineData("http://localhost:5000/")]
-    [InlineData("http://localhost.evil.invalid/")]
-    [InlineData("https://example.invalid/")]
     [InlineData("http://10.0.0.1/")]
     [InlineData("http://169.254.169.254/")]
     [InlineData("http://0.0.0.0/")]
@@ -84,6 +81,17 @@ public sealed class LocalPlanValidatorTests
     public void Invalid_or_non_literal_destinations_never_produce_a_plan(string? url)
     {
         AssertRejected(Minimal with { Url = url }, ConfigurationField.Url);
+    }
+
+    [Theory]
+    [InlineData("https://app-hub.cplus.com.br/")]
+    [InlineData("http://localhost:5000/")]
+    [InlineData("https://example.invalid/path?q=1")]
+    public void Dns_targets_are_accepted_without_resolution(string url)
+    {
+        var result = LocalPlanValidator.Validate(Minimal with { Url = url }, ExecutionId);
+        Assert.True(result.IsValid);
+        Assert.Equal(new Uri(url), result.Plan!.Target);
     }
 
     [Fact]

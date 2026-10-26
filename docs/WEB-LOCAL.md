@@ -28,7 +28,7 @@ $env:DINAMICO_DATABASE_CONNECTION = 'Host=127.0.0.1;Port=55432;Username=dinamico
 dotnet src/Dinamico.Web/bin/Release/net10.0/Dinamico.Web.dll
 ```
 
-Inicie sua aplicação alvo separadamente. O painel não cria um alvo de teste de produção. Por exemplo, com sua aplicação em `http://127.0.0.1:5000/`, informe esse endpoint, escolha 10 req/s e clique em **Iniciar teste**. Endereços DNS, `localhost` como alvo e destinos externos são recusados pelo motor. O navegador pode acessar o painel por localhost, mas o alvo de carga exige IP literal.
+Inicie sua aplicação alvo separadamente. O painel não cria um alvo de teste de produção. Por exemplo, com sua aplicação em `http://127.0.0.1:5000/`, informe esse endpoint, escolha 10 req/s e clique em **Iniciar teste**. O motor aceita domínios HTTP/HTTPS, inclusive `https://app-hub.cplus.com.br/` e `localhost`. DNS é resolvido no transporte, respeitando o timeout de conexão; HTTPS mantém hostname/SNI e validação do certificado. Redirecionamentos não são seguidos. IPs literais continuam restritos ao loopback.
 
 Ctrl+C interrompe a execução ativa e tenta salvar o resultado durante o encerramento limitado do servidor. Crash/SIGKILL não garantem relatório ou recuperação; o controle persistido de execução é trabalho de M3. O banco permanece ativo; para pará-lo, use `docker compose -f compose.m2.yaml stop`.
 
@@ -77,7 +77,7 @@ Nas opções avançadas, **Captura de requisições** permite:
 
 A tabela individual permite ordenar por início, duração ou falhas e mostra duração terminal, tempo até headers quando medido, status e categoria. Tempo até headers inclui espera do cliente e rede; não isola tempo de servidor. Cobertura individual é separada da cobertura agregada. A captura não guarda URL, headers, payload ou mensagem de exception.
 
-Recursos/scheduler e metadados da captura são salvos no PostgreSQL com retenção de resumo de 30 dias; detalhes individuais são removidos aos sete dias pelo comando canônico de retenção M2 (`storage prune`). O máximo de espera HTTP é cumulativo desde o início do coletor, não uma medida isolada da janela. A migração 2 é aditiva e validada por checksum; execuções antigas continuam legíveis sem diagnósticos inventados. CLI também aceita `captureMode` (`Off`, `Sampled`, `Complete`) e `correlateRequests` no JSON de configuração e inclui diagnósticos no relatório/importação canônica.
+Recursos/scheduler e metadados da captura são salvos no PostgreSQL com retenção de resumo de 30 dias; detalhes individuais e janelas são removidos aos sete dias. O painel executa a retenção canônica ao iniciar e a cada minuto, em lotes de até 200 execuções, com timeout de dez segundos e nova tentativa na próxima rodada se houver falha. Resumos expiram aos 30 dias e identidades aos 90 dias. Com o painel desligado, a limpeza aguarda a próxima inicialização ou o comando `storage prune`. A retenção do backend externo de traces é configurada separadamente. O máximo de espera HTTP é cumulativo desde o início do coletor, não uma medida isolada da janela. A migração 2 é aditiva e validada por checksum; execuções antigas continuam legíveis sem diagnósticos inventados. CLI também aceita `captureMode` (`Off`, `Sampled`, `Complete`) e `correlateRequests` no JSON de configuração e inclui diagnósticos no relatório/importação canônica.
 
 ### Correlação e exportação opcional
 
@@ -123,6 +123,6 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-O teste de navegador cria seu próprio alvo HTTP em loopback e usa UUIDs de projetos novos; deixa somente resultados sintéticos no banco configurado da API. Verifica execução/SSE/persistência/histórico/download, cancelamento, rejeição de alvo externo, layout móvel, ajuda, troca de projeto e estado de banco indisponível. Screenshots ficam em `TestResults/Web`. O relatório de teste fica em `FrontEnd/playwright-report` e traces em `FrontEnd/test-results`, todos ignorados no Git.
+O teste de navegador cria seu próprio alvo HTTP em loopback e usa UUIDs de projetos novos; deixa somente resultados sintéticos no banco configurado da API. Verifica execução/SSE/persistência/histórico/download, cancelamento, rejeição de URL com fragmento, layout móvel, ajuda, troca de projeto e estado de banco indisponível. Screenshots ficam em `TestResults/Web`. O relatório de teste fica em `FrontEnd/playwright-report` e traces em `FrontEnd/test-results`, todos ignorados no Git.
 
 Validação de 2026-10-22: **585 testes .NET aprovados** (575 motor/CLI + 7 persistência + 3 API), build Release sem avisos/erros e **3 testes de navegador aprovados** com Chromium real. Build React/TypeScript e script de inicialização completo aprovados; desktop 1440 px e mobile 390 px sem overflow horizontal. O navegador também confirmou que recarregar durante o teste recupera o mesmo identificador de execução. Um ensaio posterior encontrou uma corrida no cliente do teste de corpo grande: foi corrigido para enviar JSON válido com `Expect: 100-continue` e verificar a rejeição pelo limite antes do envio, em vez de disputar o upload com o fechamento da conexão. A API foi retestada após a correção. Windows e browsers diferentes não foram revalidados nesta entrega.

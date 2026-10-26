@@ -10,7 +10,7 @@ using Dinamico.LoadEngine.Timing;
 
 namespace Dinamico.LoadEngine.Transport;
 
-/// <summary>Reusable HTTP/1.1 transport for one validated loopback plan.</summary>
+/// <summary>Reusable HTTP/1.1 transport for one validated HTTP(S) plan.</summary>
 public sealed class LocalHttpTransport : IDisposable, ILocalRunTransport
 {
     private readonly LoadTestPlan _plan;
@@ -49,7 +49,7 @@ public sealed class LocalHttpTransport : IDisposable, ILocalRunTransport
             ConnectTimeout = plan.ConnectTimeout,
             PooledConnectionLifetime = plan.PooledConnectionLifetime,
             PooledConnectionIdleTimeout = plan.PooledConnectionIdleTimeout,
-            ConnectCallback = ConnectPinnedLoopbackAsync,
+            ConnectCallback = plan.Target.HostNameType == UriHostNameType.Dns ? null : ConnectPinnedLoopbackAsync,
             ActivityHeadersPropagator = null
         };
         _client = new HttpClient(handler, disposeHandler: true) { Timeout = Timeout.InfiniteTimeSpan };

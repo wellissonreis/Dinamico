@@ -130,7 +130,7 @@ public sealed class CliProcessTests
 
     [Theory]
     [InlineData("{\"schemaVersion\":999,\"url\":\"http://127.0.0.1/SECRET\"}")]
-    [InlineData("{\"schemaVersion\":2,\"url\":\"http://example.com/SECRET\"}")]
+    [InlineData("{\"schemaVersion\":2,\"url\":\"ftp://example.com/SECRET\"}")]
     [InlineData("{\"schemaVersion\":2,\"url\":\"http://127.0.0.1/\",\"unknownSECRET\":1}")]
     [InlineData("malformed SECRET")]
     public async Task RejectedConfigurationDoesNotLeakValues(string configuration)

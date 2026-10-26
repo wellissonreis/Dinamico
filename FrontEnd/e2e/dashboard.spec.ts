@@ -47,12 +47,12 @@ test('execução real, SSE, persistência, histórico e exportação', async ({ 
   expect(exceptions).toEqual([])
 })
 
-test('cancelamento real e rejeição de alvo externo com mensagem clara', async ({ page }) => {
+test('cancelamento real e rejeição de URL com fragmento com mensagem clara', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('button', { name: 'Iniciar teste', exact: true })).toBeEnabled()
-  await page.getByLabel('Endpoint', { exact: false }).fill('http://example.com/')
+  await page.getByLabel('Endpoint', { exact: false }).fill('http://127.0.0.1/#fragment')
   await page.getByRole('button', { name: 'Iniciar teste', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('IP loopback literal')
+  await expect(page.getByRole('alert')).toContainText('sem fragmento')
   await page.getByLabel('Endpoint', { exact: false }).fill(targetUrl)
   await page.getByLabel('Duração', { exact: true }).fill('30')
   const before = received

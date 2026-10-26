@@ -25,6 +25,7 @@ public static class LocalWebApplication
         builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(25));
         builder.Services.AddSingleton(new DatabaseState(connectionString ?? Environment.GetEnvironmentVariable("DINAMICO_DATABASE_CONNECTION")));
         builder.Services.AddHostedService(p => p.GetRequiredService<DatabaseState>());
+        builder.Services.AddHostedService<RetentionService>();
         builder.Services.AddSingleton<ExecutionService>();
         builder.Services.AddHostedService(p => p.GetRequiredService<ExecutionService>());
         var app = builder.Build();

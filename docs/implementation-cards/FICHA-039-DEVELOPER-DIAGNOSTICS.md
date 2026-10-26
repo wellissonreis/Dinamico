@@ -67,3 +67,12 @@ Adicionado `Process_summary_preserves_execution_window_and_resource_fields` em `
 `tests/Dinamico.Web.Tests/MetricProjectionTests.cs` verifica que timeout após headers mantém duração terminal de dois segundos e não entra nos percentis HTTP completos; respostas 429/500 preservam sua população e duração aproximada. Esses testes cobrem o comportamento existente, sem implementar coleta web de recursos, persistência de recursos, captura individual ou integração externa.
 
 Validação compartilhada com a [038](FICHA-038-REQUEST-LOSS-DIAGNOSIS.md): dez casos novos, 85 testes direcionados aprovados no total e build Release sem avisos/erros após restore locked-mode. Não houve validação de banco, navegador ou backend de telemetria. As entregas desta ficha permanecem pendentes.
+
+
+## Continuação — URLs e retenção automática em 2026-10-26
+
+Atendendo ao uso de URLs como `https://app-hub.cplus.com.br/`, o validador aceita domínios HTTP/HTTPS sem resolver DNS na validação. O transporte usa resolução DNS do handler, timeout de conexão e validação TLS padrão, sem seguir redirecionamentos; IPs literais mantêm a política de loopback. A interface e o guia WEB-LOCAL explicam os dados persistidos, correlação e a separação entre PostgreSQL e backend de spans.
+
+`RetentionService` aplica `PostgresRunStore.PruneAsync` ao iniciar o painel e a cada minuto: detalhes/janelas por 7 dias, resumos por 30 dias e identidades por 90 dias, em lotes limitados. A gravação de diagnósticos continua pela importação canônica já existente. Não há coleta de corpos ou headers das respostas.
+
+Validação: build React/TypeScript aprovado; 120 testes direcionados de validação/transporte/CLI, um teste adicional com DNS localhost e um teste da API aprovados. API compilada em Release. Banco de teste não configurado: exclusão real por retenção e navegação não foram revalidadas nesta continuação. Nenhuma carga foi enviada ao domínio informado.

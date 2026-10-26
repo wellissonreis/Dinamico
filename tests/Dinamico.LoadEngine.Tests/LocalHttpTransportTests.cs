@@ -13,6 +13,19 @@ namespace Dinamico.LoadEngine.Tests;
 public sealed class LocalHttpTransportTests
 {
     [Fact]
+    public async Task Resolves_dns_hostname_and_sends_to_the_target()
+    {
+        await using var fixture = await ControlledHttpFixture.StartAsync(new HttpFixtureOptions { BodyBytes = 32 });
+        var target = new UriBuilder(fixture.Address) { Host = "localhost" }.Uri;
+        using var transport = CreateTransport(target);
+        var result = await transport.SendAsync(0);
+        Assert.Equal(RequestOutcome.HttpCompleted, result.Outcome);
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal(32, result.ResponseBodyBytes);
+        Assert.Equal(1, fixture.ReceivedCount);
+    }
+
+    [Fact]
     public async Task Sends_headers_and_payload_and_reuses_connection()
     {
         await using var fixture = await ControlledHttpFixture.StartAsync(new HttpFixtureOptions { BodyBytes = 32 });

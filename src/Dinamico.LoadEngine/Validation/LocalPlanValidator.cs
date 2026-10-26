@@ -117,6 +117,11 @@ public static class LocalPlanValidator
         string host = authority.StartsWith('[')
             ? authority[1..authority.IndexOf(']')]
             : authority.Split(':', 2)[0];
+        if (target.HostNameType == UriHostNameType.Dns && Uri.CheckHostName(target.IdnHost) == UriHostNameType.Dns)
+        {
+            pinnedIpAddress = target.IdnHost; // DNS is resolved by the transport under its connection deadline.
+            return null;
+        }
         if (host.Contains('%') || !IPAddress.TryParse(host, out var address))
             return ConfigurationErrorCode.LoopbackLiteralRequired;
         if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && host != address.ToString())

@@ -6,17 +6,19 @@
 
 ## Orquestração
 
-O agente principal atua como Tech Lead: analisa, delega, acompanha, integra e valida. Trabalhe com um único agente por padrão. Delegue somente com vantagem concreta; prefira até dois subagentes simultâneos, usando um terceiro somente para tarefas realmente independentes. Não delegue tarefas triviais nem execute tarefas dependentes em paralelo. Evite delegação recursiva; encerre agentes após suas responsabilidades. Não permita edições concorrentes nos mesmos arquivos. Avalie worktrees somente quando isolamento for necessário.
+Para qualquer tarefa que altere arquivos, o agente principal SOL atua como Tech Lead: analisa, planeja, delega, acompanha, integra e revisa, mas nunca edita arquivos, inclusive documentação, configuração ou testes. O worker executa as alterações, valida e reporta. Não use subagentes nativos nem delegação recursiva. Use um worker por vez, sem edições concorrentes nos mesmos arquivos. O SOL pode executar leitura, inspeção, Git e validações, mas toda escrita cabe ao worker.
 
-Cada delegação deve conter objetivo, módulos ou arquivos relevantes, restrições, critérios de aceite e resultado esperado. Envie contexto pequeno, sem histórico integral. A resposta deve limitar-se a conclusão, alterações, testes e bloqueios relevantes.
+Preserve sessões e janelas tmux existentes, incluindo explicitamente a sessão/janela Claude, seus painéis, layout, processos e navegação por mouse; não fixe um número de sessão como regra permanente. Reutilize um worker adequado já ativo em uma janela existente quando possível. Abra uma nova janela tmux somente ao iniciar um novo worker. Não encerre processos do usuário. Não altere arquivos modificados pelo usuário, salvo se fizerem parte explicitamente do escopo e o worker preservar as mudanças existentes.
+
+Cada delegação deve começar exatamente com o prefixo `ROLE: WORKER — Execute diretamente a tarefa delegada. Não crie subagentes. Não delegue novamente. Implemente, valide e reporte o resultado.` e conter as seções CONTEXTO, OBJETIVO, ESCOPO, RESTRIÇÕES, VALIDAÇÃO e CONCLUSÃO, com arquivos relevantes e critérios de aceite claros. Envie contexto pequeno, sem histórico integral. O worker deve implementar e validar; o SOL deve revisar o diff e os resultados antes de concluir. A comunicação final deve resumir conclusão, arquivos, evidências de validação e limitações relevantes.
 
 ## Complexidade e eficiência
 
-Use os modelos configurados nos TOML conforme a dificuldade real. Eleve esforço somente após investigar causas e identificar riscos ou dificuldades concretas; esforços superiores exigem justificativa. Comunique substituições por indisponibilidade. Leia somente arquivos necessários, priorize símbolos e referências, reutilize decisões documentadas, evite buscas repetidas, investigações duplicadas e logs completos. Não crie documentação ou agentes cujo custo exceda o trabalho.
+Use Luna conforme `.codex/config.toml` e `.codex/agents/*.toml` quando adequado. Se Luna estiver indisponível, pode usar outro modelo econômico adequado sem pedir autorização. Não escale para modelo caro sem autorização explícita do usuário. Leia somente arquivos necessários, priorize símbolos e referências, reutilize decisões documentadas, evite buscas repetidas, investigações duplicadas e logs completos. Não crie documentação cujo custo exceda o trabalho.
 
 ## tmux
 
-Preserve a sessão, o layout, processos e navegação por mouse existentes. Use tmux para acompanhamento visual, interação, testes e Git; use subagentes nativos para delegação e `/subagents` quando disponível. Não suponha que agentes aparecerão nos painéis. Crie painéis ou sessões independentes somente com benefício concreto de visualização ou execução simultânea. Não feche processos ou painéis do usuário sem autorização.
+Use tmux para executar e acompanhar o worker, interagir e realizar testes e Git. Reaproveite worker adequado em janela existente quando possível; crie uma nova janela apenas para novo worker. Preserve sessões/janelas, layout e processos existentes, em especial a janela/sessão Claude. Não use subagentes nativos nem feche processos ou janelas do usuário.
 
 ## Planejamento e fichas
 
@@ -24,7 +26,7 @@ Crie fichas curtas somente para continuidade, múltiplas etapas ou decisões per
 
 ## Implementação e validação
 
-Inspecione antes de alterar. Respeite arquitetura e convenções; limite mudanças ao escopo autorizado, sem refatorações oportunistas ou sobrescrever trabalho existente. Não altere produção em tarefas documentais. O principal integra mudanças. Execute testes pertinentes e compilação quando aplicável, começando por verificações direcionadas. Revise falhas, regressões e diferenças do Git; registre verificações não executadas e motivos. Não declare sucesso sem evidência, mascare falhas em testes ou introduza soluções temporárias sem explicar limitações.
+Inspecione antes de delegar. Respeite arquitetura e convenções; limite mudanças ao escopo autorizado, sem refatorações oportunistas ou sobrescrever trabalho existente. O worker implementa e executa testes pertinentes e compilação quando aplicável, começando por verificações direcionadas. O SOL revisa o diff e resultados de validação; registre verificações não executadas e motivos. Não declare sucesso sem evidência, mascare falhas em testes ou introduza soluções temporárias sem explicar limitações.
 
 ## Comunicação e prioridade
 
