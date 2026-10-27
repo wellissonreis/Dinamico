@@ -8,6 +8,12 @@ A [espera Linux/WSL foi corrigida](docs/LINUX-SCHEDULER-DELIVERY.md) após repro
 
 ## Usar o painel React
 
+No Windows, com .NET SDK **10.0.204**, Node.js **22.12+** com npm e Docker Compose instalados, execute no PowerShell:
+
+```powershell
+.\run
+```
+
 No Linux/WSL, instale Node.js **22.12+**, npm, Docker Compose e o SDK .NET **10.0.204**. Na raiz do projeto:
 
 ```sh
@@ -23,7 +29,7 @@ O script inicia o PostgreSQL local, instala as dependências do React, compila o
 
 Use IP loopback literal (`127.0.0.1` ou `[::1]`). O painel fica restrito à máquina local e não possui login. Ctrl+C encerra o servidor; o PostgreSQL permanece ativo. Para parar somente o banco deste projeto: `docker compose -f compose.m2.yaml stop`.
 
-Para desenvolvimento com atualização automática do React e para comandos manuais no Windows, veja [WEB-LOCAL](docs/WEB-LOCAL.md).
+Para desenvolvimento com atualização automática do React e detalhes dos scripts, veja [WEB-LOCAL](docs/WEB-LOCAL.md).
 
 CLI local para carga HTTP/1.1 constante, com agenda open-loop e relatório JSON. Somente HTTP(S) com **IP loopback literal**, como `127.0.0.1` ou `[::1]`; `localhost`, DNS e destinos externos são recusados. Sem retries, redirects, proxy de ambiente, cookies ou descompressão automática. TLS conserva a validação de certificado.
 

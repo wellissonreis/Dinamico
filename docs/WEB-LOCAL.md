@@ -16,17 +16,15 @@ O script usa `dotnet` disponível no PATH ou o SDK desta sessão em `/tmp/dinami
 
 Na ausência de configuração, o script usa a conexão de desenvolvimento do Compose. Para outra senha, porta ou banco, exporte `DINAMICO_DATABASE_CONNECTION`; senhas não entram em argumentos ou mensagens da aplicação. `DINAMICO_POSTGRES_PORT` altera a porta do Compose e a porta padrão usada pelo script. Com `DINAMICO_POSTGRES_PASSWORD` personalizado, informe também a conexão completa.
 
-O SDK Windows via `dotnet.exe` não é selecionado automaticamente pelo script WSL. No Windows, execute manualmente os comandos abaixo em PowerShell, com `dotnet` do SDK Windows:
+## Iniciar no Windows
+
+Com Docker Desktop ativo (containers Linux), Node.js 22.12+ com npm e .NET SDK 10.0.204 instalados no Windows, execute na raiz pelo PowerShell:
 
 ```powershell
-docker compose -f compose.m2.yaml up -d --wait
-npm ci --prefix FrontEnd
-npm run build --prefix FrontEnd
-dotnet restore Dinamico.slnx --locked-mode
-dotnet build Dinamico.slnx -c Release --no-restore
-$env:DINAMICO_DATABASE_CONNECTION = 'Host=127.0.0.1;Port=55432;Username=dinamico;Password=dinamico-local-m2;Database=dinamico_m2'
-dotnet src/Dinamico.Web/bin/Release/net10.0/Dinamico.Web.dll
+.\run
 ```
+
+O atalho `run.cmd` chama `scripts/run-web.ps1` com a política de execução aplicada somente ao processo iniciado. Também funciona no CMD com `run`. O script usa `dotnet.exe`, `npm.cmd` e `docker.exe` do Windows, prepara o PostgreSQL, compila frontend/API e inicia o painel em **http://127.0.0.1:5080**. Interrompe a inicialização se qualquer etapa falhar. Aceita as mesmas variáveis de conexão e porta descritas acima, usando `$env:NOME = 'valor'` no PowerShell. O script Linux/WSL continua disponível separadamente.
 
 Inicie sua aplicação alvo separadamente. O painel não cria um alvo de teste de produção. Por exemplo, com sua aplicação em `http://127.0.0.1:5000/`, informe esse endpoint, escolha 10 req/s e clique em **Iniciar teste**. O motor aceita domínios HTTP/HTTPS, inclusive `https://app-hub.cplus.com.br/` e `localhost`. DNS é resolvido no transporte, respeitando o timeout de conexão; HTTPS mantém hostname/SNI e validação do certificado. Redirecionamentos não são seguidos. IPs literais continuam restritos ao loopback.
 
